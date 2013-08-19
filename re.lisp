@@ -138,7 +138,7 @@
 
 (defun newline-p (c)
   "T if c is a newline character."
-  (find c '(#\return #\linefeed #\newline) :test #'char=))
+  (find c '(#\return #\linefeed) :test #'char=))
 
 (defun punctuation-p (c)
   "T if c is a punctuation character."
