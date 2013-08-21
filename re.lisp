@@ -70,9 +70,7 @@
 
 (defmethod make-load-form ((re re) &optional env)
   "Tell the system how to save and load a regular expression to a FASL."
-  (with-slots (pattern case-fold multi-line)
-      re
-    `(compile-re ,pattern :case-fold ,case-fold :multi-line ,multi-line)))
+  `(compile-re ,(re-pattern re)))
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (flet ((dispatch-re (s c n)
