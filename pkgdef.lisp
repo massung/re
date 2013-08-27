@@ -3,5 +3,4 @@
  :version 1.0
  :author "massung@gmail.com"
  :url "http://github.com/massung/re"
- :source :git
  :requires ("parsergen"))
