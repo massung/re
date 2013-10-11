@@ -107,7 +107,10 @@
            (declare (ignorable ,$$ ,$1 ,$2 ,$3 ,$4 ,$5 ,$6 ,$7 ,$8 ,$9 ,$_))
            (progn ,@body))))))
 
-(defvar *match-stream*)
+(defvar *match-string*)
+(defvar *match-start*)
+(defvar *match-pos*)
+(defvar *match-end*)
 (defvar *match-groups*)
 
 (defun capture-groups (s)
@@ -120,11 +123,9 @@
 
 (defun satisfy (pred)
   "Match a character that satisfies a predicate."
-  (let ((c (read-char *match-stream* nil nil)))
-    (if (and c (funcall pred c))
-        t
-      (when c
-        (unread-char c *match-stream*)))))
+  (let ((c (and (< *match-pos* *match-end*) (char *match-string* *match-pos*))))
+    (when (and c (funcall pred c))
+      (incf *match-pos*))))
 
 (defun unsatisfy (pred)
   "Match a character that doesn't satisfy a predicate."
@@ -148,11 +149,11 @@
 
 (defun stream-start ()
   "Match only the beginning of the input stream. Assert so FIND-RE can bail quickly!"
-  (assert (zerop (file-position *match-stream*))))
+  (assert (= *match-pos* *match-start*)))
 
 (defun eof ()
   "Match the end of the input stream."
-  (null (peek-char nil *match-stream* nil nil)))
+  (>= *match-pos* *match-end*))
 
 (defun match (char)
   "Match a specific character."
@@ -188,25 +189,26 @@
 (defun boundary (start end)
   "Match zero or more characters between two boundaries."
   (let ((parse-state (gensym "parse-state")))
-    `(if (let ((c (peek-char nil *match-stream* nil nil)))
-           (and c (char= c ,start)))
+    `(if (let ((c (char *match-string* *match-pos*)))
+           (char= c ,start))
          (tagbody
           ,parse-state
-          (let ((c (read-char *match-stream* nil nil)))
-            (case c
-              (,end t)
-              (nil (return nil))
-              (otherwise
-               (go ,parse-state)))))
+          (let ((c (and (< *match-pos* *match-end*) (char *match-string* *match-pos*))))
+            (when (null c)
+              (return nil))
+            (incf *match-pos*)
+            (if (char= c ,end)
+                t
+              (go ,parse-state))))
        (return nil))))
 
 (defun group (body)
   "Execute a sub-pattern and group the matched characters."
   (let ((group (gensym "group")))
-    `(let ((,group (list (file-position *match-stream*))))
+    `(let ((,group (list *match-pos*)))
        (push ,group *match-groups*)
        (tagbody ,@body)
-       (rplacd ,group (list (file-position *match-stream*))))))
+       (rplacd ,group (list *match-pos*)))))
 
 (defparser re-parser
   ((start re) $1)
@@ -341,20 +343,22 @@
                     (compile-re ,p))))
          (progn ,@body)))))
 
-(defun match-re (pattern s &key (start 0) end)
+(defun match-re (pattern s &key (start 0) (end (length s)))
   "Test a pattern re against a string."
   (with-re (re pattern)
-    (let ((*match-stream* (make-string-input-stream s start end))
-          (*match-groups*))
+    (let ((*match-string* s)
+          (*match-start* start)
+          (*match-pos* start)
+          (*match-end* end)
+          (*match-groups* nil))
       (when (and (or (zerop start)
                      (null (re-match-start-p re)))
                  (funcall (re-expression re)))
-        (let ((end (file-position *match-stream*)))
-          (make-instance 're-match
-                         :start-pos start
-                         :end-pos end
-                         :groups (capture-groups s)
-                         :match (subseq s start end)))))))
+        (make-instance 're-match
+                       :start-pos *match-start*
+                       :end-pos *match-pos*
+                       :groups (capture-groups s)
+                       :match (subseq s start *match-pos*))))))
 
 (defun find-re (pattern s &key (start 0) (end (length s)) all)
   "Find a regexp pattern match somewhere in a string."
