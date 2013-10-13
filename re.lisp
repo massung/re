@@ -121,9 +121,13 @@
              (push (subseq s start end) groups))))
     (reduce #'capture *match-groups* :initial-value nil)))
 
+(defun next-char ()
+  "Return the next character in the stream."
+  (and (< *match-pos* *match-end*) (char *match-string* *match-pos*)))
+
 (defun satisfy (pred)
   "Match a character that satisfies a predicate."
-  (let ((c (and (< *match-pos* *match-end*) (char *match-string* *match-pos*))))
+  (let ((c (next-char)))
     (when (and c (funcall pred c))
       (incf *match-pos*))))
 
@@ -153,7 +157,7 @@
 
 (defun eof ()
   "Match the end of the input stream."
-  (>= *match-pos* *match-end*))
+  (satisfy #'null))
 
 (defun match (char)
   "Match a specific character."
@@ -188,16 +192,16 @@
 
 (defun boundary (start end)
   "Match zero or more characters between two boundaries."
-  (let ((parse-state (gensym "parse-state")))
-    `(if (let ((c (char *match-string* *match-pos*)))
-           (char= c ,start))
+  (let ((parse-state (gensym "parse-state"))
+        (c (gensym "ch")))
+    `(if (satisfy #'(lambda (,c) (char= ,c ,start)))
          (tagbody
           ,parse-state
-          (let ((c (and (< *match-pos* *match-end*) (char *match-string* *match-pos*))))
-            (when (null c)
+          (let ((,c (next-char)))
+            (when (null ,c)
               (return nil))
             (incf *match-pos*)
-            (if (char= c ,end)
+            (if (char= ,c ,end)
                 t
               (go ,parse-state))))
        (return nil))))
