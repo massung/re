@@ -157,7 +157,7 @@
 
 (defun eof ()
   "Match the end of the input stream."
-  (satisfy #'null))
+  (null (next-char)))
 
 (defun match (char)
   "Match a specific character."
