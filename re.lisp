@@ -133,7 +133,9 @@
 
 (defun unsatisfy (pred)
   "Match a character that doesn't satisfy a predicate."
-  (not (satisfy #'(lambda (c) (funcall pred c)))))
+  (let ((c (next-char)))
+    (when (and c (not (funcall pred c)))
+      (incf *match-pos*))))
 
 (defun space-p (c)
   "T if c is a whitespace character."
