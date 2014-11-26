@@ -137,6 +137,10 @@
     (when (and c (not (funcall pred c)))
       (incf *match-pos*))))
 
+(defun tab-p (c)
+  "T if c is a tab character."
+  (char= c #\tab))
+
 (defun space-p (c)
   "T if c is a whitespace character."
   (find c '(#\space #\tab) :test #'char=))
@@ -292,6 +296,8 @@
                    (#\%
                     (let ((c (read-char s)))
                       (case c
+                        (#\t (values :satisfy #'tab-p))
+                        (#\T (values :unsatisfy #'tab-p))
                         (#\s (values :satisfy #'space-p))
                         (#\S (values :unsatisfy #'space-p))
                         (#\n (values :satisfy #'newline-p))
