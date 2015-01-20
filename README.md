@@ -1,6 +1,6 @@
 # The RE Package
 
-The `re` package is a small, lightweight, and very fast, regular expression library for [LispWorks](http://www.lispworks.com). It uses [Lua](http://www.lua.org)-style pattern patching (found [here](http://www.lua.org/pil/20.2.html)) and provides functionality for matching, searching, splitting, and replacing patterns in strings.
+The `re` package is a small, lightweight, and very fast, regular expression library for [LispWorks](http://www.lispworks.com). It is a non-recursive, backtracing VM. The syntax is similar to [Lua](http://www.lua.org)-style pattern patching (found [here](http://www.lua.org/pil/20.2.html)), but has added support for additional regex features (e.g. `a|b` or tests).
 
 ## Compiling Patterns
 
@@ -27,9 +27,9 @@ Finally, the `with-re` macro let's you user either strings or `re` objects in a 
 
 The heart of all pattern matching is the `match-re` function.
 
-	(match-re pattern string &key start end)
+	(match-re pattern string &key start end exact)
 	
-It will match `string` against `pattern` and return a `re-match` object on success or `nil` on failure. The `start` and `end` arguments limit the scope of the match and default to the entire string.
+It will match `string` against `pattern` and return a `re-match` object on success or `nil` on failure. The `start` and `end` arguments limit the scope of the match and default to the entire string. If `exact` is `t` then the pattern has to consume the entire string (from start to end).
 
 	CL-USER > (match-re "%d+" "abc 123")
 	NIL
@@ -134,49 +134,10 @@ While in the body of the macro, `$$` will be bound to the `match-string` and the
 	            (replace-re #/(%a)%a+%s*/ #'initial "Lisp In Small Pieces" :all t))
 	"L.I.S.P."
 
-# How It Works
-
-Each `re` object is actually a compiled function that is - essentially - a giant [`prog`](file://localhost/Applications/LispWorks%206.1/Library/lib/6-1-0-0/manual/online/CLHS/Body/m_prog_.htm#prog) statement.
-
-At its heart, each step of the function is a `satisfy` check. For example, the pattern `#/abc/` would be expressed like this:
-
-	(prog ()
-	  (unless (satisfy #'(lambda (c) (char= c #\a)))
-	    (return nil))
-	  (unless (satisfy #'(lambda (c) (char= c #\b)))
-	    (return nil))
-	  (unless (satisfy #'(lambda (c) (char= c #\c)))
-	    (return nil))
-	  (return t))
-
-Every call to `satisfy` will read the next character from the source stream and (if non-nil) will be passed to the predicate that will indicate if it matches.
-
-Repeating patterns use [go tags](file://localhost/Applications/LispWorks%206.1/Library/lib/6-1-0-0/manual/online/CLHS/Body/26_glo_g.htm#go_tag) to iterate the same section of code one or more times as necessary. For example, `#/%d*/`...
-
-	(prog ()
-	 #:|parse-state18571|
-	  (when (satisfy #'digit-char-p)
-	    (go #:|parse-state18571|))
-	  (return t))
-
-Inclusive character sets require that any predicate in a list match, while exclusive sets require that all predicates fail. These tests are compiled down for speed, but `#/[%xp-z]/` would be similar to this:
-
-	(prog ()
-	  (unless (satisfy #'(lambda (c)
-	                       (or (digit-char-p c 16)
-	                           (char<= #\p c #\z))))
-	    (return nil)))
-
-Once the entire pattern has been compiled into a single `prog` statement, then it is compiled to native code.
-
-	(compile nil `(lambda () (prog () ,@pattern)))
-
-This ability to generate code and compile it at runtime makes this style of pattern matching incredibly fast!
-
 # Thank You!
 
 If you get some good use out of this package, please let me know; it's nice to know your work is valued by others.
 
-There are still a couple things that I want to do to improve things. None are especially hard, but they aren't a high priority at the moment.
+I'm always improving it; it's the foundation for many of the other packages I've created for JSON parsing, XML parsing, HTTP header parsing, etc.
 
 Should you find/fix a bug or add a nice feature, please feel free to send a pull request or let me know at [massung@gmail.com](mailto:massung@gmail.com).
