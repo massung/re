@@ -99,6 +99,10 @@
   (or (char= c #\return)
       (char= c #\linefeed)))
 
+(defun word-char-p (c)
+  "T if is alphanumeric or an underscore."
+  (or (alphanumericp c) (char= c #\_)))
+
 (defun punctuation-p (c)
   "T if c is a punctuation character."
   (find c "`~!@#$%^&*()-+=[]{}\|;:',./<>?\"" :test #'char=))
@@ -215,8 +219,8 @@
     (#\U (values :unsatisfy #'upper-case-p))
     (#\d (values :satisfy #'digit-char-p))
     (#\D (values :unsatisfy #'digit-char-p))
-    (#\w (values :satisfy #'alphanumericp))
-    (#\W (values :unsatisfy #'alphanumericp))
+    (#\w (values :satisfy #'word-char-p))
+    (#\W (values :unsatisfy #'word-char-p))
     (#\x (values :satisfy #'hex-char-p))
     (#\X (values :unsatisfy #'hex-char-p))
     (#\p (values :satisfy #'punctuation-p))
@@ -232,29 +236,33 @@
     ;; if an exclusive set, skip the first character
     (when exclusive-p (read-char s))
 
-    ;; parse all the caracters in the set
-    (flet ((next-token ()
-             (let ((c (read-char s)))
-               (case c
+    ;; get the position of the first character
+    (let ((pos (file-position s)))
 
-                 ;; end of set
-                 (#\] nil)
+      ;; parse all the caracters in the set
+      (flet ((next-token ()
+               (let ((c (read-char s)))
+                 (case c
+                   
+                   ;; end of set
+                   (#\] nil)
+                   
+                   ;; escaped predicate or character
+                   (#\% (escape (read-char s)))
+                   
+                   ;; range character (or just a character if at start or end)
+                   (#\- (if (or (equal (file-position s) (1+ pos))
+                                (equal (peek-char nil s) #\]))
+                            (values :char c)
+                          (values :- c)))
 
-                 ;; escaped predicate or character
-                 (#\% (escape (read-char s)))
-
-                 ;; range character (or just a character if at start or end)
-                 (#\- (if (equal (peek-char nil s) #\])
-                          (values :char c)
-                        (values :- c)))
-
-                 ;; just a character
-                 (otherwise (values :char c))))))
-
-      ;; parse and build a predicate function
-      (values (if exclusive-p :exclusive-set :inclusive-set)
-              (compile nil `(lambda ($_)
-                              (or ,@(set-parser #'next-token))))))))
+                   ;; just a character
+                   (otherwise (values :char c))))))
+        
+        ;; parse and build a predicate function
+        (values (if exclusive-p :exclusive-set :inclusive-set)
+                (compile nil `(lambda ($_)
+                                (or ,@(set-parser #'next-token)))))))))
 
 (defun compile-re (pattern)
   "Create a regular expression from a pattern string."
@@ -383,10 +391,10 @@
                                                              ((null g) cs)
                                                            (push (subseq s (first g) (second g)) cs)))))
                                                (make-instance 're-match
-                                                              :match (subseq s start sp)
                                                               :start-pos start
                                                               :end-pos sp
-                                                              :groups cs)))))))))))
+                                                              :groups cs
+                                                              :match (subseq s start sp))))))))))))
                                                                              
 
 (defun resolve-labels (re labels)
