@@ -1,6 +1,6 @@
 # The RE Package
 
-The `re` package is a small, lightweight, and very fast, regular expression library for [LispWorks](http://www.lispworks.com). It is a non-recursive, backtracing VM. The syntax is similar to [Lua](http://www.lua.org)-style pattern patching (found [here](http://www.lua.org/pil/20.2.html)), but has added support for additional regex features (e.g. `a|b` or tests).
+The `re` package is a small, lightweight, and very fast, regular expression library for [LispWorks](http://www.lispworks.com). It is a non-recursive, backtracing VM. The syntax is similar to [Lua](http://www.lua.org)-style pattern patching (found [here](http://www.lua.org/pil/20.2.html)), but has added support for additional regex features (e.g. `a|b`, `(?..)`, etc).
 
 ## Compiling Patterns
 

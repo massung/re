@@ -178,6 +178,7 @@
   ((inst :exclusive-set) `((:unsatisfy ,$1)))
 
   ;; group captures
+  ((inst :push :? group) $3)
   ((inst :push group) `((:push) ,@$2 (:pop))))
 
 (defparser set-parser
