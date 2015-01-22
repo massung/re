@@ -111,10 +111,6 @@
   "T if c is a hexadecimal character."
   (digit-char-p c 16))
 
-(defstruct (state (:constructor make-state (pc sp &optional groups stack)))
-  "Regular expression run state."
-  pc sp groups stack)
-
 (defparser re-parser
   ((start re) $1)
 
@@ -125,19 +121,13 @@
   ((exprs))
   ((exprs expr exprs) `(,@$1 ,@$2))
   ((exprs expr :or exprs)
-   (let ((left (gensym))
-         (right (gensym))
-         (branch (gensym)))
-     `((:split ,left ,right) ,left ,@$1 (:jump ,branch) ,right ,@$3 ,branch)))
+   `((:split 0 ,(1+ (length $1))) ,@$1 (:jump ,(length $3)) ,@$3))
 
   ;; capture group expressions
   ((group :pop))
   ((group expr group) `(,@$1 ,@$2))
   ((group expr :or group)
-   (let ((left (gensym))
-         (right (gensym))
-         (branch (gensym)))
-     `((:split ,left ,right) ,left ,@$1 (:jump ,branch) ,right ,@$3 ,branch)))
+   `((:split 0 ,(1+ (length $1))) ,@$1 (:jump ,(length $3)) ,@$3))
 
   ;; simple expressions
   ((expr simple) $1)
@@ -145,27 +135,20 @@
 
   ;; zero or one time
   ((simple inst :?)
-   (let ((try (gensym))
-         (skip (gensym)))
-     `((:split ,try ,skip) ,try ,@$1 ,skip)))
+   `((:split 0 ,(length $1)) ,@$1))
 
   ;; one or more times (greedy)
   ((simple inst :+)
-   (let ((rep (gensym))
-         (skip (gensym)))
-     `(,rep ,@$1 (:split ,rep ,skip) ,skip)))
+   `(,@$1 (:split ,(- (1+ (length $1))) 0)))
 
   ;; one or more times (lazy)
   ((simple inst :-)
-   (let ((rep (gensym))
-         (skip (gensym)))
-     `(,rep ,@$1 (:split ,skip ,rep) ,skip)))
+   `(,@$1 (:split 0 ,(- (1+ (length $1))))))
 
   ;; zero or more times
   ((simple inst :*)
-   (let ((rep (gensym))
-         (skip (gensym)))
-     `((:split ,rep ,skip) ,rep ,@$1 (:split ,rep ,skip) ,skip)))
+   (let ((n (length $1)))
+     `((:split 0 ,(1+ n)) ,@$1 (:jump ,(- (+ n 2))))))
 
   ;; just the instruction
   ((simple inst) $1)
@@ -317,100 +300,69 @@
                    (vector-push-extend i re))
               
               ;; 2nd pass fix labels
-              finally (return (make-instance 're
-                                             :pattern pattern
-                                             :expression (resolve-labels re labels))))))))
+              finally (return (make-instance 're :pattern pattern :expression re)))))))
+
+(defstruct (thread (:constructor make-thread (pc sp groups stack))) pc sp groups stack)
 
 (defun run (expression s &optional (pc 0) (start 0) (end (length s)))
   "Execute a regular expression program."
-  (loop with threads = (list (make-state pc start))
+  (loop with threads = (list (make-thread pc start nil nil))
         while threads
-          
-        ;; execute the top thread until success or failure
+
+        ;; pop the next thread and run it
         do (with-slots (pc sp groups stack)
                (pop threads)
-             (flet ((next-char ()
-                      (when (<= 0 sp (1- end))
-                        (char s sp))))
 
-               ;; loop until a match intruction or a failure
-               (loop while (destructuring-bind (op &optional x y)
-                               (aref expression pc)
-                             (case op
-                               
-                               ;; match the start, don't advance
-                               (:start     (when (= sp start)
-                                             (incf pc)))
-                               
-                               ;; match the end, don't advance
-                               (:end       (when (= sp end)
-                                             (incf pc)))
-                               
-                               ;; match a single character
-                               (:char      (when-let (c (next-char))
-                                             (when (char= c x)
-                                               (incf sp)
-                                               (incf pc))))
-                               
-                               ;; match a predicate
-                               (:satisfy   (when-let (c (next-char))
-                                             (when (funcall x c)
-                                               (incf sp)
-                                               (incf pc))))
-                               
-                               ;; fail to match a predicate
-                               (:unsatisfy (when-let (c (next-char))
-                                             (unless (funcall x c)
-                                               (incf sp)
-                                               (incf pc))))
-                               
-                               ;; jump to another instruction
-                               (:jump      (setf pc x))
-                               
-                               ;; push a new group
-                               (:push      (let ((capture (list sp)))
-                                             (push capture stack)
-                                             (push capture groups)
-                                             (incf pc)))
-                               
-                               ;; pop a group and push a capture
-                               (:pop       (progn
-                                             (rplacd (pop stack) (list sp))
-                                             (incf pc)))
-                               
-                               ;; execute two branches in parallel
-                               (:split     (progn
-                                             (push (make-state y sp groups stack) threads)
-                                             (setf pc x)))
-                               
-                               ;; successful match, return the final string pointer
-                               (:match     (return-from run
-                                             (let ((cs (let (cs)
-                                                         (do ((g (pop groups)
-                                                                 (pop groups)))
-                                                             ((null g) cs)
-                                                           (push (subseq s (first g) (second g)) cs)))))
-                                               (make-instance 're-match
-                                                              :start-pos start
-                                                              :end-pos sp
-                                                              :groups cs
-                                                              :match (subseq s start sp))))))))))))
-                                                                             
-
-(defun resolve-labels (re labels)
-  "Convert labels to instruction offsets."
-  (loop for i across re
-        
-        ;; resolve the first argument
-        do (when-let (n (second (assoc (second i) labels)))
-             (setf (second i) n))
-        
-        ;; resolve the second argument
-        do (when-let (n (second (assoc (third i) labels)))
-             (setf (third i) n))
-
-        ;; return the regular expression
-        finally (return re)))
+             ;; step until the thread fails or matches
+             (loop while (destructuring-bind (op &optional x y)
+                             (aref expression pc)
+                           (incf pc)
+                           (case op
+                             
+                             ;; start and end boundaries
+                             (:start     (= sp start))
+                             (:end       (= sp end))
+                             
+                             ;; match an exact character
+                             (:char      (when (and (< sp end) (char= (char s sp) x))
+                                           (incf sp)))
+                             
+                             ;; match a predicate function
+                             (:satisfy   (when (and (< sp end) (funcall x (char s sp)))
+                                           (incf sp)))
+                             
+                             ;; fail to match a predicate function
+                             (:unsatisfy (when (and (< sp end) (not (funcall x (char s sp))))
+                                           (incf sp)))
+                             
+                             ;; push a capture group
+                             (:push      (let ((capture (list sp)))
+                                           (push capture stack)
+                                           (push capture groups)))
+                             
+                             ;; pop a capture group
+                             (:pop       (rplacd (pop stack) (list sp)))
+                             
+                             ;; jump to an instruction
+                             (:jump      (incf pc x))
+                             
+                             ;; fork a thread
+                             (:split     (let ((branch (make-thread (+ pc y) sp groups stack)))
+                                           (push branch threads)
+                                           (incf pc x)))
+                             
+                             ;; successfully matched, create and return
+                             (:match     (return-from run
+                                           (let ((cs (let (cs)
+                                                       (do ((g (pop groups)
+                                                               (pop groups)))
+                                                           ((null g) cs)
+                                                         (push (subseq s (first g) (second g)) cs)))))
+                                             (make-instance 're-match
+                                                            :start-pos start
+                                                            :end-pos sp
+                                                            :groups cs
+                                                            :match (subseq s start sp)))))))))))
 
 (defmacro with-re ((re pattern) &body body)
   "Compile pattern if it's not a RE object and execute body."
