@@ -164,6 +164,12 @@
   ((inst :inclusive-set) `((:satisfy ,$1)))
   ((inst :exclusive-set) `((:unsatisfy ,$1)))
 
+  ;; bounded characters
+  ((inst :boundary)
+   (destructuring-bind (b1 b2)
+       $1
+     `((:char ,b1) (:split 2 0) (:satisfy identity) (:jump -3) (:char ,b2))))
+
   ;; group captures
   ((inst :push :? group) $3)
   ((inst :push group) `((:push) ,@$2 (:pop))))
@@ -229,7 +235,7 @@
                    
                    ;; end of set
                    (#\] nil)
-                   
+
                    ;; escaped predicate or character
                    (#\% (escape (read-char s)))
                    
@@ -255,8 +261,13 @@
                (when-let (c (read-char s nil nil))
                  (case c
                    
-                   ;; escaped character or predicate
-                   (#\% (escape (read-char s)))
+                   ;; escaped predicate or character
+                   (#\% (let ((c (read-char s)))
+                          (if (char= c #\b)
+                              (let ((b1 (read-char s))
+                                    (b2 (read-char s)))
+                                (values :boundary (list b1 b2)))
+                            (escape c))))
                    
                    ;; compile a character set
                    (#\[ (compile-set s))
