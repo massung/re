@@ -115,23 +115,24 @@
   ((start re) $1)
 
   ;; regular expression
-  ((re exprs) `(,@$1 (:match)))
+  ((re choose)
+   `(,@$1 (:match)))
+
+  ;; choose between multiple expression lists
+  ((choose exprs :or choose)
+   `((:split 0 ,(1+ (length $1))) ,@$1 (:jump ,(length $3)) ,@$3))
+  ((choose exprs)
+   `(,@$1))
 
   ;; top-level expressions
+  ((exprs expr exprs)
+   `(,@$1 ,@$2))
   ((exprs))
-  ((exprs expr exprs) `(,@$1 ,@$2))
-  ((exprs expr :or exprs)
-   `((:split 0 ,(1+ (length $1))) ,@$1 (:jump ,(length $3)) ,@$3))
-
-  ;; capture group expressions
-  ((group :pop))
-  ((group expr group) `(,@$1 ,@$2))
-  ((group expr :or group)
-   `((:split 0 ,(1+ (length $1))) ,@$1 (:jump ,(length $3)) ,@$3))
 
   ;; simple expressions
   ((expr simple) $1)
-  ((expr :error) (error "Illegal re pattern."))
+  ((expr :error)
+   (error "Illegal re pattern."))
 
   ;; zero or one time
   ((simple inst :?)
@@ -154,15 +155,24 @@
   ((simple inst) $1)
 
   ;; bytecode instruction
-  ((inst :^) `((:start)))
-  ((inst :$) `((:end)))
-  ((inst :char) `((:char ,$1)))
-  ((inst :any) `((:any ,$1)))
-  ((inst :none) `((:none ,$1)))
-  ((inst :satisfy) `((:satisfy ,$1)))
-  ((inst :unsatisfy) `((:unsatisfy ,$1)))
-  ((inst :inclusive-set) `((:satisfy ,$1)))
-  ((inst :exclusive-set) `((:unsatisfy ,$1)))
+  ((inst :^)
+   `((:start)))
+  ((inst :$)
+   `((:end)))
+  ((inst :char)
+   `((:char ,$1)))
+  ((inst :any)
+   `((:any ,$1)))
+  ((inst :none)
+   `((:none ,$1)))
+  ((inst :satisfy)
+   `((:satisfy ,$1)))
+  ((inst :unsatisfy)
+   `((:unsatisfy ,$1)))
+  ((inst :inclusive-set)
+   `((:satisfy ,$1)))
+  ((inst :exclusive-set)
+   `((:unsatisfy ,$1)))
 
   ;; bounded characters
   ((inst :boundary)
@@ -171,8 +181,9 @@
      `((:char ,b1) (:split 2 0) (:satisfy identity) (:jump -3) (:char ,b2))))
 
   ;; group captures
-  ((inst :push :? group) $3)
-  ((inst :push group) `((:push) ,@$2 (:pop))))
+  ((inst :push :? choose :pop) $3)
+  ((inst :push choose :pop)
+   `((:push) ,@$2 (:pop))))
 
 (defparser set-parser
   ((start set) $1)
