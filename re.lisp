@@ -326,9 +326,9 @@
 
 (defstruct (thread (:constructor make-thread (pc sp groups stack))) pc sp groups stack)
 
-(defun run (expression s &optional (pc 0) (start 0) (end (length s)))
+(defun run (expression s &optional (pc 0) (start 0) (end (length s)) (offset 0))
   "Execute a regular expression program."
-  (loop with threads = (list (make-thread pc start nil nil))
+  (loop with threads = (list (make-thread pc (+ start offset) nil nil))
         while threads
 
         ;; pop the next thread and run it
@@ -381,10 +381,10 @@
                                                            ((null g) cs)
                                                          (push (subseq s (first g) (second g)) cs)))))
                                              (make-instance 're-match
-                                                            :start-pos start
+                                                            :start-pos (+ start offset)
                                                             :end-pos sp
                                                             :groups cs
-                                                            :match (subseq s start sp)))))))))))
+                                                            :match (subseq s (+ start offset) sp)))))))))))
 
 (defmacro with-re ((re pattern) &body body)
   "Compile pattern if it's not a RE object and execute body."
@@ -416,32 +416,31 @@
            (declare (ignorable ,$$ ,$1 ,$2 ,$3 ,$4 ,$5 ,$6 ,$7 ,$8 ,$9 ,$_))
            (progn ,@body))))))
 
-(defun match-re (pattern s &key (start 0) (end (length s)) exact)
+(defun match-re (pattern s &key (start 0) (end (length s)) (offset 0) exact)
   "Test a pattern re against a string."
   (with-re (re pattern)
-    (when-let (m (run (re-expression re) s 0 start end))
+    (when-let (m (run (re-expression re) s 0 start end offset))
       (and (or (null exact) (= (match-pos-end m) end)) m))))
 
-(defun find-re (pattern s &key (start 0) (end (length s)) all)
-  "Find a regexp pattern match somewhere in a string."
+(defun find-re (pattern s &key (start 0) (end (length s)) (offset 0) all)
+  "Find a regexp pattern match somewhere in a string. Run from an offset."
   (with-re (re pattern)
-    (flet ((next-match (start)
-             (loop for i from start below end
-                   for m = (match-re re s :start i :end end)
+    (flet ((next-match (offset)
+             (loop for i from offset below end
+                   for m = (run (re-expression re) s 0 start end i)
                    when m
                    return m)))
       (if (not all)
           (next-match start)
-        (loop with i = start
-              for m = (next-match i)
+        (loop for m = (next-match offset)
               while m
               collect (prog1 m
-                        (setf i (match-pos-end m))))))))
+                        (setf offset (- (match-pos-end m) start))))))))
 
-(defun split-re (pattern s &key (start 0) (end (length s)) all coalesce-seps)
+(defun split-re (pattern s &key (start 0) (end (length s)) (offset 0) all coalesce-seps)
   "Split a string into one or more strings by pattern match."
   (with-re (re pattern)
-    (let ((ms (find-re re s :start start :end end :all all)))
+    (let ((ms (find-re re s :start start :end end :offset offset :all all)))
       (if (null ms)
           s
         (if (not all)
@@ -454,10 +453,10 @@
                 when (or (null coalesce-seps) (plusp (length split)))
                 collect split))))))
 
-(defun replace-re (pattern with s &key (start 0) (end (length s)) all)
+(defun replace-re (pattern with s &key (start 0) (end (length s)) (offset 0) all)
   "Replace patterns found within a string with a new value."
   (with-re (re pattern)
-    (let ((matches (find-re re s :start start :end end :all all)))
+    (let ((matches (find-re re s :start start :end end :offset offset :all all)))
       (with-output-to-string (rep nil :element-type 'character)
         (loop with pos = 0
               for match in (when matches (if all matches (list matches)))
