@@ -407,14 +407,17 @@
         ($7 (intern "$7" *package*))
         ($8 (intern "$8" *package*))
         ($9 (intern "$9" *package*))
-        ($_ (intern "$_" *package*)))
+        ($_ (intern "$_" *package*))
+        ($* (intern "$*" *package*)))
     `(let ((,match ,match-expr))
        (if (null ,match)
            ,no-match
          (destructuring-bind (,$$ &optional ,$1 ,$2 ,$3 ,$4 ,$5 ,$6 ,$7 ,$8 ,$9 &rest ,$_)
              (cons (match-string ,match) (match-groups ,match))
            (declare (ignorable ,$$ ,$1 ,$2 ,$3 ,$4 ,$5 ,$6 ,$7 ,$8 ,$9 ,$_))
-           (progn ,@body))))))
+           (let ((,$* (match-groups ,match)))
+             (declare (ignorable ,$*))
+             (progn ,@body)))))))
 
 (defun match-re (pattern s &key (start 0) (end (length s)) (offset 0) exact)
   "Test a pattern re against a string."
