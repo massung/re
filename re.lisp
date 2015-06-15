@@ -324,11 +324,11 @@
               ;; 2nd pass fix labels
               finally (return (make-instance 're :pattern pattern :expression re)))))))
 
-(defstruct (thread (:constructor make-thread (pc sp groups stack))) pc sp groups stack)
+(defstruct (re-thread (:constructor make-re-thread (pc sp groups stack))) pc sp groups stack)
 
 (defun run (expression s &optional (pc 0) (start 0) (end (length s)) (offset 0))
   "Execute a regular expression program."
-  (loop with threads = (list (make-thread pc (+ start offset) nil nil))
+  (loop with threads = (list (make-re-thread pc (+ start offset) nil nil))
         while threads
 
         ;; pop the next thread and run it
@@ -369,7 +369,7 @@
                              (:jump      (incf pc x))
                              
                              ;; fork a thread
-                             (:split     (let ((branch (make-thread (+ pc y) sp groups stack)))
+                             (:split     (let ((branch (make-re-thread (+ pc y) sp groups stack)))
                                            (push branch threads)
                                            (incf pc x)))
                              
