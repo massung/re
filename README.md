@@ -2,7 +2,7 @@
 
 The `re` package is a small, lightweight, and quick, regular expression library for [LispWorks](http://www.lispworks.com). It is a non-recursive, backtracing VM. The syntax is similar to [Lua](http://www.lua.org)-style pattern patching (found [here](http://www.lua.org/pil/20.2.html)), but has added support for additional regex features (e.g. `a|b`, `(?..)`, etc). It's certainly not the fastest, but is easy to understand and extend.
 
-*A portable version of `re` is available in the [`cl-yacc`](https://github.com/massung/re/cl-yacc) branch of this repository as well, which was graciously created by [Victor](https://github.com/vityok).*
+*A portable version of `re` is available in the [`cl-yacc`](https://github.com/massung/re/tree/cl-yacc) branch of this repository as well, which was graciously created by [Victor](https://github.com/vityok).*
 
 ## Compiling Patterns
 
