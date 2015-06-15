@@ -1,6 +1,8 @@
 # The RE Package
 
-The `re` package is a small, lightweight, and very fast, regular expression library for [LispWorks](http://www.lispworks.com). It is a non-recursive, backtracing VM. The syntax is similar to [Lua](http://www.lua.org)-style pattern patching (found [here](http://www.lua.org/pil/20.2.html)), but has added support for additional regex features (e.g. `a|b`, `(?..)`, etc).
+The `re` package is a small, lightweight, and quick, regular expression library for [LispWorks](http://www.lispworks.com). It is a non-recursive, backtracing VM. The syntax is similar to [Lua](http://www.lua.org)-style pattern patching (found [here](http://www.lua.org/pil/20.2.html)), but has added support for additional regex features (e.g. `a|b`, `(?..)`, etc). It's certainly not the fastest, but is easy to understand and extend.
+
+*A portable version of `re` is available in the [`cl-yacc`](https://github.com/massung/re/cl-yacc) branch of this repository as well, which was graciously created by [Victor](https://github.com/vityok).*
 
 ## Compiling Patterns
 
@@ -122,7 +124,7 @@ Whe `with-re-match` macro can be used to assist in extracting the matched patter
 
 If the result of `match-expr` is `nil`, then `no-match` is returned and `body` is not executed.
 
-While in the body of the macro, `$$` will be bound to the `match-string` and the groups will be bound to `$1`, `$2`, ..., `$9`. Any groups beyond the first 9 are bound in a list to `$_`.
+While in the body of the macro, `$$` will be bound to the `match-string` and the groups will be bound to `$1`, `$2`, ..., `$9`. Any groups beyond the first 9 are bound in a list to `$_`. The symbol `$*` is bound to all the match groups.
  
 	CL-USER > (with-re-match (m (match-re "(%a+)(%s+)(%d+)" "abc 123"))
 	            (string-append $3 $2 $1)))
@@ -130,8 +132,8 @@ While in the body of the macro, `$$` will be bound to the `match-string` and the
 
 	CL-USER > (flet ((initial (m)
 	                   (with-re-match (v m)
-	                     (format nil "~a." $1))))
-	            (replace-re #/(%a)%a+%s*/ #'initial "Lisp In Small Pieces" :all t))
+	                     (format nil "~@(~a~)." $1))))
+	            (replace-re #/(%a)%a+%s*/ #'initial "lisp in small pieces" :all t))
 	"L.I.S.P."
 
 # Thank You!
