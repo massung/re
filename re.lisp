@@ -142,11 +142,12 @@
   ((simple inst :+)
    `(,@$1 (:split ,(- (1+ (length $1))) 0)))
 
-  ;; one or more times (lazy)
+  ;; zero or more times (lazy)
   ((simple inst :-)
-   `(,@$1 (:split 0 ,(- (1+ (length $1))))))
+   (let ((n (length $1)))
+     `((:split ,(1+ n) 0) ,@$1 (:jump ,(- (+ n 2))))))
 
-  ;; zero or more times
+  ;; zero or more times (greedy)
   ((simple inst :*)
    (let ((n (length $1)))
      `((:split 0 ,(1+ n)) ,@$1 (:jump ,(- (+ n 2))))))
