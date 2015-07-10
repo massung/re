@@ -1,8 +1,6 @@
 # The RE Package
 
-The `re` package is a small, lightweight, and quick, regular expression library for [LispWorks](http://www.lispworks.com). It is a non-recursive, backtracing VM. The syntax is similar to [Lua](http://www.lua.org)-style pattern patching (found [here](http://www.lua.org/pil/20.2.html)), but has added support for additional regex features (e.g. `a|b`, `(?..)`, etc). It's certainly not the fastest, but is easy to understand and extend.
-
-*A portable version of `re` is available in the [`cl-yacc`](https://github.com/massung/re/tree/cl-yacc) branch of this repository as well, which was graciously created by [Victor](https://github.com/vityok).*
+The `re` package is a small, portable, lightweight, and quick, regular expression library for Common Lisp. It is a non-recursive, backtracing VM. The syntax is similar to [Lua](http://www.lua.org)-style pattern patching (found [here](http://www.lua.org/pil/20.2.html)), but has added support for additional regex features (see below). It's certainly not the fastest, but is easy to understand and extend.
 
 ## Compiling Patterns
 
@@ -135,6 +133,20 @@ While in the body of the macro, `$$` will be bound to the `match-string` and the
 	                     (format nil "~@(~a~)." $1))))
 	            (replace-re #/(%a)%a+%s*/ #'initial "lisp in small pieces" :all t))
 	"L.I.S.P."
+	
+## Additional Features
+
+In addition to supporting all of what Lua pattern matching has to offer, it also supports branching with `|` and uncaptured groups: `(?..)`. For example...
+
+	CL-USER > (match-re "(?a|b)+" "abbaaabbccc")
+	#<RE-MATCH "abbaaabb">
+
+Finally, the `re` package has one special feature: user-defined character set predicates! Using `%:`, you can provide a predicate function for the regexp VM to test characters against.
+
+	CL-USER > (match-re "%:digit-char-p:+" "103")
+	#<RE-MATCH "103">
+
+The predicate must take a single character and return non-nil if the character matches the predicate function. *Note: this is especially handy when parsing unicode strings!*
 
 # Thank You!
 

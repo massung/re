@@ -1,4 +1,4 @@
-;;;; Regular Expression Pattern Matching for LispWorks
+;;;; Regular Expression Pattern Matching for Common Lisp
 ;;;;
 ;;;; Copyright (c) 2012 by Jeffrey Massung
 ;;;;
@@ -17,11 +17,8 @@
 ;;;; under the License.
 ;;;;
 
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (require "parsergen"))
-
 (defpackage :re
-  (:use :cl :lw :parsergen)
+  (:use :cl)
   (:export
    #:re
    #:re-match
@@ -45,10 +42,14 @@
 
 (in-package :re)
 
+;;; ----------------------------------------------------
+
 (defclass re ()
   ((pattern   :initarg :pattern    :reader re-pattern)
    (expr      :initarg :expression :reader re-expression))
   (:documentation "Regular expression."))
+
+;;; ----------------------------------------------------
 
 (defclass re-match ()
   ((match     :initarg :match      :reader match-string)
@@ -57,25 +58,33 @@
    (end-pos   :initarg :end-pos    :reader match-pos-end))
   (:documentation "Matched pattern."))
 
+;;; ----------------------------------------------------
+
 (defmethod print-object ((re re) s)
   "Output a regular expression to a stream."
   (print-unreadable-object (re s :type t)
     (format s "~s" (re-pattern re))))
+
+;;; ----------------------------------------------------
 
 (defmethod print-object ((match re-match) s)
   "Output a regular expression match to a stream."
   (print-unreadable-object (match s :type t)
     (format s "~s" (match-string match))))
 
+;;; ----------------------------------------------------
+
 (defmethod make-load-form ((re re) &optional env)
   "Tell the system how to save and load a regular expression to a FASL."
   `(compile-re ,(re-pattern re)))
+
+;;; ----------------------------------------------------
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (flet ((dispatch-re (s c n)
            (declare (ignorable c n))
            (let ((re (with-output-to-string (re)
-                       (loop :for c := (read-char s t nil t) :do
+                       (loop for c = (read-char s t nil t) :do
                          (case c
                            (#\/ (return))
                            (#\\ (let ((c (read-char s t nil t)))
@@ -85,250 +94,348 @@
              (compile-re re))))
     (set-dispatch-macro-character #\# #\/ #'dispatch-re)))
 
+;;; ----------------------------------------------------
+
 (defun tab-p (c)
   "T if c is a tab character."
   (char= c #\tab))
+
+;;; ----------------------------------------------------
 
 (defun space-p (c)
   "T if c is a whitespace character."
   (or (char= c #\tab)
       (char= c #\space)))
 
+;;; ----------------------------------------------------
+
 (defun newline-p (c)
   "T if c is a newline character."
   (or (char= c #\return)
       (char= c #\linefeed)))
 
+;;; ----------------------------------------------------
+
 (defun word-char-p (c)
   "T if is alphanumeric or an underscore."
   (or (alphanumericp c) (char= c #\_)))
+
+;;; ----------------------------------------------------
 
 (defun punctuation-p (c)
   "T if c is a punctuation character."
   (find c "`~!@#$%^&*()-+=[]{}\|;:',./<>?\"" :test #'char=))
 
+;;; ----------------------------------------------------
+
 (defun hex-char-p (c)
   "T if c is a hexadecimal character."
   (digit-char-p c 16))
 
-(defparser re-parser
-  ((start re) $1)
+;;; ----------------------------------------------------
 
-  ;; regular expression
-  ((re choose)
-   `(,@$1 (:match)))
+(defun take-char (stream &optional c)
+  "Optionally read the next character if it matches."
+  (let ((v (peek-char nil stream nil)))
+    (if (null v)
+        (error "Unexpected end of re pattern")
+      (when (or (null c) (eql v c))
+        (read-char stream)))))
 
-  ;; choose between multiple expression lists
-  ((choose exprs :or choose)
-   `((:split 0 ,(1+ (length $1))) ,@$1 (:jump ,(length $3)) ,@$3))
-  ((choose exprs)
-   `(,@$1))
+;;; ----------------------------------------------------
 
-  ;; top-level expressions
-  ((exprs expr exprs)
-   `(,@$1 ,@$2))
-  ((exprs))
-
-  ;; simple expressions
-  ((expr simple) $1)
-  ((expr :error)
-   (error "Illegal re pattern."))
-
-  ;; zero or one time
-  ((simple inst :?)
-   `((:split 0 ,(length $1)) ,@$1))
-
-  ;; one or more times (greedy)
-  ((simple inst :+)
-   `(,@$1 (:split ,(- (1+ (length $1))) 0)))
-
-  ;; zero or more times (lazy)
-  ((simple inst :-)
-   (let ((n (length $1)))
-     `((:split ,(1+ n) 0) ,@$1 (:jump ,(- (+ n 2))))))
-
-  ;; zero or more times (greedy)
-  ((simple inst :*)
-   (let ((n (length $1)))
-     `((:split 0 ,(1+ n)) ,@$1 (:jump ,(- (+ n 2))))))
-
-  ;; just the instruction
-  ((simple inst) $1)
-
-  ;; bytecode instruction
-  ((inst :^)
-   `((:start)))
-  ((inst :$)
-   `((:end)))
-  ((inst :char)
-   `((:char ,$1)))
-  ((inst :any)
-   `((:any ,$1)))
-  ((inst :none)
-   `((:none ,$1)))
-  ((inst :satisfy)
-   `((:satisfy ,$1)))
-  ((inst :unsatisfy)
-   `((:unsatisfy ,$1)))
-  ((inst :inclusive-set)
-   `((:satisfy ,$1)))
-  ((inst :exclusive-set)
-   `((:unsatisfy ,$1)))
-
-  ;; bounded characters
-  ((inst :boundary)
-   (destructuring-bind (b1 b2)
-       $1
-     `((:char ,b1) (:split 2 0) (:satisfy identity) (:jump -3) (:char ,b2))))
-
-  ;; group captures
-  ((inst :push :? choose :pop) $3)
-  ((inst :push choose :pop)
-   `((:push) ,@$2 (:pop))))
-
-(defparser set-parser
-  ((start set) $1)
-
-  ;; parse all the predicates
-  ((set predicate set) `(,$1 ,@$2))
-  ((set))
-
-  ;; tests
-  ((predicate :char :- :char) `(char<= ,$1 $_ ,$3))
-  ((predicate :char) `(char= ,$1 $_))
-  ((predicate :satisfy) `(funcall ,$1 $_))
-  ((predicate :unsatisfy) `(not (funcall ,$1 $_)))
-
-  ;; error in pattern
-  ((predicate :error)
-   (error "Illegal re pattern.")))
-
-(defun escape (c)
+(defun escape (stream)
   "Return the test and predicate for an escaped character."
-  (case c
-    (#\s (values :satisfy #'space-p))
-    (#\S (values :unsatisfy #'space-p))
-    (#\t (values :satisfy #'tab-p))
-    (#\T (values :unsatisfy #'tab-p))
-    (#\n (values :satisfy #'newline-p))
-    (#\N (values :unsatisfy #'newline-p))
-    (#\a (values :satisfy #'alpha-char-p))
-    (#\A (values :unsatisfy #'alpha-char-p))
-    (#\l (values :satisfy #'lower-case-p))
-    (#\L (values :unsatisfy #'lower-case-p))
-    (#\u (values :satisfy #'upper-case-p))
-    (#\U (values :unsatisfy #'upper-case-p))
-    (#\d (values :satisfy #'digit-char-p))
-    (#\D (values :unsatisfy #'digit-char-p))
-    (#\w (values :satisfy #'word-char-p))
-    (#\W (values :unsatisfy #'word-char-p))
-    (#\x (values :satisfy #'hex-char-p))
-    (#\X (values :unsatisfy #'hex-char-p))
-    (#\p (values :satisfy #'punctuation-p))
-    (#\P (values :unsatisfy #'punctuation-p))
-    
-    ;; just an escaped character
-    (otherwise (values :char c))))
+  (let ((c (take-char stream)))
+    (case c
 
-(defun compile-set (s)
-  "Create a single satisfy predicate for a character set."
-  (let ((exclusive-p (equal (peek-char nil s) #\^)))
+      ;; user-defined predicate
+      (#\: (let ((sym (with-output-to-string (s)
+                        (do ((c (take-char stream)
+                                (take-char stream)))
+                            ((eql c #\:))
+                          (write-char c s)))))
+             (list :one-of (symbol-function (read-from-string sym)))))
 
-    ;; if an exclusive set, skip the first character
-    (when exclusive-p (read-char s))
+      ;; boundary test
+      (#\b (let ((b1 (take-char stream))
+                 (b2 (take-char stream)))
+             (list :bounds `((:char ,b1)) `((:char ,b2)))))
+      
+      ;; named inclusive sets
+      (#\s (list :one-of #'space-p))
+      (#\t (list :one-of #'tab-p))
+      (#\n (list :one-of #'newline-p))
+      (#\a (list :one-of #'alpha-char-p))
+      (#\l (list :one-of #'lower-case-p))
+      (#\u (list :one-of #'upper-case-p))
+      (#\d (list :one-of #'digit-char-p))
+      (#\w (list :one-of #'word-char-p))
+      (#\x (list :one-of #'hex-char-p))
+      (#\p (list :one-of #'punctuation-p))
+      
+      ;; named exclusive sets
+      (#\S (list :none-of #'space-p))
+      (#\T (list :none-of #'tab-p))
+      (#\N (list :none-of #'newline-p))
+      (#\A (list :none-of #'alpha-char-p))
+      (#\L (list :none-of #'lower-case-p))
+      (#\U (list :none-of #'upper-case-p))
+      (#\D (list :none-of #'digit-char-p))
+      (#\W (list :none-of #'word-char-p))
+      (#\X (list :none-of #'hex-char-p))
+      (#\P (list :none-of #'punctuation-p))
+      
+      ;; just an escaped character
+      (otherwise (list :char c)))))
 
-    ;; get the position of the first character
-    (let ((pos (file-position s)))
+;;; ----------------------------------------------------
 
-      ;; parse all the caracters in the set
-      (flet ((next-token ()
-               (let ((c (read-char s)))
-                 (case c
-                   
-                   ;; end of set
-                   (#\] nil)
+(defun charset (stream)
+  "Parse a character set."
+  (let (ps)
+    (do ((c (take-char stream)
+            (take-char stream)))
+        ((eql c #\])
+         (compile nil `(lambda ($_)
+                         (declare (optimize (safety 0) (speed 3) (debug 0)) (character $_))
+                         (or ,@ps))))
+      (let ((p (if (eql c #\%)
+                   (destructuring-bind (test predicate &rest extra)
+                       (escape stream)
+                     (declare (ignore extra))
+                     (case test
+                       
+                       ;; special case
+                       (:bounds (error "Cannot have %b in a character set"))
+                       
+                       ;; inclusive and exclusive predicates
+                       (:one-of  `(funcall ,predicate $_))
+                       (:none-of `(not (funcall ,predicate $_)))
+                       
+                       ;; simple character, no ranging allowed
+                       (:char `(char= ,predicate $_))))
+                 
+                 ;; just a simple character, check for a character range
+                 (let ((v (take-char stream #\-)))
+                   (cond ((null v) `(char= $_ ,c))
+                         
+                         ;; if - is followed by end, unread and add a character predicate
+                         ((eql (peek-char nil stream) #\])
+                          (prog1 `(char= $_ ,c)
+                            (unread-char v stream)))
+                         
+                         ;; a valid range of characters
+                         (t `(char<= ,c $_ ,(read-char stream))))))))
+             
+        ;; add the predicate to the list (order doesn't matter)
+        (push p ps)))))
 
-                   ;; escaped predicate or character
-                   (#\% (escape (read-char s)))
-                   
-                   ;; range character (or just a character if at start or end)
-                   (#\- (if (or (equal (file-position s) (1+ pos))
-                                (equal (peek-char nil s) #\]))
-                            (values :char c)
-                          (values :- c)))
+;;; ----------------------------------------------------
 
-                   ;; just a character
-                   (otherwise (values :char c))))))
+(defun rep (rep token)
+  "Repeat (or maybe) a token."
+  (if (member (first token) '(nil :? :+ :* :-))
+      (error "Illegal re pattern")
+    (list rep (list token))))
+
+;;; ----------------------------------------------------
+
+(defun parse-re (stream &optional recursive-p)
+  "Parse a regular expression pattern into a token form."
+  (loop with stack = nil
+        with tokens = nil
         
-        ;; parse and build a predicate function
-        (values (if exclusive-p :exclusive-set :inclusive-set)
-                (compile nil `(lambda ($_)
-                                (or ,@(set-parser #'next-token)))))))))
+        ;; check every character
+        for c = (peek-char nil stream nil)
+
+        ;; stop at the end of the stream or at the end of a group's last branch
+        until (or (null c) (and recursive-p (eql c #\))))
+
+        ;; parse the next token
+        for token = (case (read-char stream)
+                      
+                      ;; escape characters
+                      (#\% (escape stream))
+                      
+                      ;; conditional pattern
+                      (#\| (let ((else (parse-re stream t)))
+                             (prog1 (list :or tokens else)
+                               (setf tokens nil))))
+                      
+                      ;; character sets
+                      (#\[ (let ((exclusive-p (take-char stream #\^)))
+                             (list (if exclusive-p :none-of :one-of) (charset stream))))
+                      
+                      ;; reserved for character set
+                      (#\] (error "Unexpected ']' in re pattern"))
+                      
+                      ;; push a new group onto the stack
+                      (#\( (let ((no-capture-p (take-char stream #\?)))
+                             
+                             ;; push the current token list to the stack
+                             (push tokens stack)
+                             
+                             ;; push the group action to the stack
+                             (push (not no-capture-p) stack)
+                             
+                             ;; create a new token list
+                             (setf tokens nil)))
+                      
+                      ;; pop a group
+                      (#\) (cond ((null stack) (error "Unexpected ')' in re pattern"))
+                                 ((null tokens) (error "Empty group in re pattern"))
+
+                                 ;; pop the stack and create the group token
+                                 (t (prog1 (if (pop stack)
+                                               (list :capture (append '((:push)) tokens '((:pop))))
+                                             (list :ignore tokens))
+                                      (setf tokens (pop stack))))))
+                      
+                      ;; pattern boundaries
+                      (#\^ (if (= (file-position stream) 1) '(:start) (list :char c)))
+                      (#\$ (if (null (peek-char nil stream nil)) '(:end) (list :char c)))
+                      
+                      ;; satisfy any character
+                      (#\. (list :any))
+                      
+                      ;; optional expressions
+                      (#\? (rep :? (pop tokens)))
+                      
+                      ;; repeat expressions
+                      (#\+ (rep :+ (pop tokens)))
+                      (#\* (rep :* (pop tokens)))
+                      (#\- (rep :- (pop tokens)))
+                      
+                      ;; simply match an exact character
+                      (otherwise (list :char c)))
+
+        ;; collect them all (as a stack)
+        when token do (push token tokens)
+        
+        ;; return all the tokens parsed - add the match token at the end
+        finally (cond (stack (error "Missing ')' in re pattern"))
+
+                      ;; if there were no tokens parsed then it's an empty pattern/group
+                      ((null tokens) (error "Empty~@[ '|' in~] re pattern" recursive-p))
+
+                      ;; otherwise return the tokens, append the :match token
+                      (t (return (reverse (if recursive-p
+                                              tokens
+                                            (cons '(:match) tokens))))))))
+
+;;; ----------------------------------------------------
 
 (defun compile-re (pattern)
   "Create a regular expression from a pattern string."
-  (let ((n (length pattern)))
-    (with-input-from-string (s pattern)
-      (flet ((next-token ()
-               (when-let (c (read-char s nil nil))
-                 (case c
-                   
-                   ;; escaped predicate or character
-                   (#\% (let ((c (read-char s)))
-                          (if (char= c #\b)
-                              (let ((b1 (read-char s))
-                                    (b2 (read-char s)))
-                                (values :boundary (list b1 b2)))
-                            (escape c))))
-                   
-                   ;; compile a character set
-                   (#\[ (compile-set s))
+  (let ((bs ())
+        (re (make-array 16 :adjustable t :fill-pointer 0)))
+    (labels ((compile-branch (symbol)
+               (push (cons symbol (length re)) bs))
+             (compile-any ()
+               (vector-push-extend '(:any) re))
+             (compile-split (b1 b2)
+               (vector-push-extend (list :split b1 b2) re))
+             (compile-jump (b)
+               (vector-push-extend (list :jump b) re))
+             (compile-tokens (tokens)
+               (dolist (token tokens)
+                 (destructuring-bind (tok &optional x y)
+                     token
+                   (case tok
+                     ((:match :start :end :any :char :one-of :none-of :push :pop)
+                      (vector-push-extend token re))
 
-                   ;; conditional
-                   (#\| :or)
+                     ;; choose branch
+                     (:or (let ((this (gensym))
+                                (else (gensym))
+                                (done (gensym)))
+                            (compile-split this else)
+                            (compile-branch this)
+                            (compile-tokens x)
+                            (compile-jump done)
+                            (compile-branch else)
+                            (compile-tokens y)
+                            (compile-branch done)))
 
-                   ;; push a group capture
-                   (#\( :push)
-                   (#\) :pop)
-                 
-                   ;; pattern boundaries
-                   (#\^ (if (= (file-position s) 1) :^ (values :char c)))
-                   (#\$ (if (= (file-position s) n) :$ (values :char c)))
+                     ;; Lua boundary
+                     (:bounds (let ((try (gensym))
+                                    (done (gensym))
+                                    (again (gensym)))
+                                (compile-tokens x)
+                                (compile-branch again)
+                                (compile-split done try)
+                                (compile-branch try)
+                                (compile-any)
+                                (compile-jump again)
+                                (compile-branch done)
+                                (compile-tokens y)))
+                                
+                     ;; capture and ignore groups
+                     ((:capture :ignore) (compile-tokens x))
 
-                   ;; satisfy any character
-                   (#\. (values :satisfy 'identity))
-                   
-                   ;; optional and repeating
-                   (#\? :?)
-                   (#\+ :+)
-                   (#\- :-)
-                   (#\* :*)
-                   
-                   ;; reserved characters that will be syntax errors
-                   ((#\]) (error "Illegal re pattern."))
-                 
-                   ;; just a simple character
-                   (otherwise (values :char c))))))
-        
-        ;; create an array of all the instructions parsed
-        (loop with re = (make-array 0 :adjustable t :fill-pointer t)
-              with labels = ()
-              
-              ;; loop over each instruction
-              for i in (re-parser #'next-token)
-              
-              ;; pull labels into a table, push instructions
-              do (if (symbolp i)
-                     (push (list i (length re)) labels)
-                   (vector-push-extend i re))
-              
-              ;; 2nd pass fix labels
-              finally (return (make-instance 're :pattern pattern :expression re)))))))
+                     ;; maybe match
+                     (:? (let ((this (gensym))
+                               (else (gensym)))
+                           (compile-split this else)
+                           (compile-branch this)
+                           (compile-tokens x)
+                           (compile-branch else)))
+
+                     ;; one or more times
+                     (:+ (let ((rep (gensym))
+                               (done (gensym)))
+                           (compile-branch rep)
+                           (compile-tokens x)
+                           (compile-split rep done)
+                           (compile-branch done)))
+
+                     ;; zero or more times (greedy)
+                     (:* (let ((try (gensym))
+                               (done (gensym))
+                               (again (gensym)))
+                           (compile-branch again)
+                           (compile-split try done)
+                           (compile-branch try)
+                           (compile-tokens x)
+                           (compile-jump again)
+                           (compile-branch done)))
+
+                     ;; zero or more times (lazy)
+                     (:- (let ((try (gensym))
+                               (done (gensym))
+                               (again (gensym)))
+                           (compile-branch again)
+                           (compile-split done try)
+                           (compile-branch try)
+                           (compile-tokens x)
+                           (compile-jump again)
+                           (compile-branch done))))))))
+
+      ;; parse the pattern and compile all the expressions in it
+      (with-input-from-string (s pattern)
+        (compile-tokens (parse-re s))
+
+        ;; resolve the labels created in the compiled expression
+        (loop for token across re do (symbol-macrolet ((b1 (second token)) (b2 (third token)))
+                                       (case (first token)
+                                         (:jump  (setf b1 (cdr (assoc b1 bs))))
+                                         (:split (setf b1 (cdr (assoc b1 bs))
+                                                       b2 (cdr (assoc b2 bs))))))))
+
+      ;; create the regular expression object
+      (make-instance 're :pattern pattern :expression re))))
+
+;;; ----------------------------------------------------
 
 (defstruct (re-thread (:constructor make-re-thread (pc sp groups stack))) pc sp groups stack)
 
+;;; ----------------------------------------------------
+
 (defun run (expression s &optional (pc 0) (start 0) (end (length s)) (offset 0))
   "Execute a regular expression program."
+  (declare (optimize (safety 0) (debug 0) (speed 3))
+           (fixnum pc start end offset))
   (loop with threads = (list (make-re-thread pc (+ start offset) nil nil))
         while threads
 
@@ -345,17 +452,21 @@
                              ;; start and end boundaries
                              (:start     (= sp start))
                              (:end       (= sp end))
+
+                             ;; match any character
+                             (:any       (when (< sp end)
+                                           (incf sp)))
                              
                              ;; match an exact character
                              (:char      (when (and (< sp end) (char= (char s sp) x))
                                            (incf sp)))
-                             
+
                              ;; match a predicate function
-                             (:satisfy   (when (and (< sp end) (funcall x (char s sp)))
+                             (:one-of    (when (and (< sp end) (funcall x (char s sp)))
                                            (incf sp)))
                              
                              ;; fail to match a predicate function
-                             (:unsatisfy (when (and (< sp end) (not (funcall x (char s sp))))
+                             (:none-of   (when (and (< sp end) (not (funcall x (char s sp))))
                                            (incf sp)))
                              
                              ;; push a capture group
@@ -367,12 +478,12 @@
                              (:pop       (rplacd (pop stack) (list sp)))
                              
                              ;; jump to an instruction
-                             (:jump      (incf pc x))
+                             (:jump      (setf pc x))
                              
                              ;; fork a thread
-                             (:split     (let ((branch (make-re-thread (+ pc y) sp groups stack)))
+                             (:split     (let ((branch (make-re-thread y sp groups stack)))
                                            (push branch threads)
-                                           (incf pc x)))
+                                           (setf pc x)))
                              
                              ;; successfully matched, create and return
                              (:match     (return-from run
@@ -387,6 +498,8 @@
                                                             :groups cs
                                                             :match (subseq s (+ start offset) sp)))))))))))
 
+;;; ----------------------------------------------------
+
 (defmacro with-re ((re pattern) &body body)
   "Compile pattern if it's not a RE object and execute body."
   (let ((p (gensym)))
@@ -395,6 +508,8 @@
                       ,p
                     (compile-re ,p))))
          (progn ,@body)))))
+
+;;; ----------------------------------------------------
 
 (defmacro with-re-match ((match match-expr &key no-match) &body body)
   "Intern match symbols to execute a body."
@@ -420,11 +535,16 @@
              (declare (ignorable ,$*))
              (progn ,@body)))))))
 
+;;; ----------------------------------------------------
+
 (defun match-re (pattern s &key (start 0) (end (length s)) (offset 0) exact)
   "Test a pattern re against a string."
   (with-re (re pattern)
-    (when-let (m (run (re-expression re) s 0 start end offset))
-      (and (or (null exact) (= (match-pos-end m) end)) m))))
+    (let ((m (run (re-expression re) s 0 start end offset)))
+      (when m
+        (and (or (null exact) (= (match-pos-end m) end)) m)))))
+
+;;; ----------------------------------------------------
 
 (defun find-re (pattern s &key (start 0) (end (length s)) (offset 0) all)
   "Find a regexp pattern match somewhere in a string. Run from an offset."
@@ -441,6 +561,8 @@
               collect (prog1 m
                         (setf offset (- (match-pos-end m) start))))))))
 
+;;; ----------------------------------------------------
+
 (defun split-re (pattern s &key (start 0) (end (length s)) (offset 0) all coalesce-seps)
   "Split a string into one or more strings by pattern match."
   (with-re (re pattern)
@@ -456,6 +578,8 @@
                 do (setf pos (match-pos-end m))
                 when (or (null coalesce-seps) (plusp (length split)))
                 collect split))))))
+
+;;; ----------------------------------------------------
 
 (defun replace-re (pattern with s &key (start 0) (end (length s)) (offset 0) all)
   "Replace patterns found within a string with a new value."
