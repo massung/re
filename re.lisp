@@ -427,69 +427,69 @@
 
 (defun run (expression s &optional (pc 0) (start 0) (end (length s)) (offset 0))
   "Execute a regular expression program."
-  (declare (optimize (safety 0) (debug 0) (speed 3))
-           (fixnum pc start end offset))
-  (loop with threads = (list (make-re-thread pc (+ start offset) nil nil))
-        while threads
+  (declare (optimize (safety 0) (debug 0) (speed 3)))
+  (do ((threads (list (make-re-thread pc (+ start offset) nil nil))))
+      ((null threads))
 
-        ;; pop the next thread and run it
-        do (with-slots (pc sp groups stack)
-               (pop threads)
+    ;; pop the next thread and run it until a match or failure
+    (with-slots (pc sp groups stack)
+        (pop threads)
 
-             ;; step until the thread fails or matches
-             (loop while (destructuring-bind (op &optional x y)
-                             (aref expression pc)
-                           (incf pc)
-                           (case op
-                             
-                             ;; start and end boundaries
-                             (:start     (= sp start))
-                             (:end       (= sp end))
-
-                             ;; match any character
-                             (:any       (when (< sp end)
-                                           (incf sp)))
-                             
-                             ;; match an exact character
-                             (:char      (when (and (< sp end) (char= (char s sp) x))
-                                           (incf sp)))
-
-                             ;; match a predicate function
-                             (:one-of    (when (and (< sp end) (funcall x (char s sp)))
-                                           (incf sp)))
-                             
-                             ;; fail to match a predicate function
-                             (:none-of   (when (and (< sp end) (not (funcall x (char s sp))))
-                                           (incf sp)))
-                             
-                             ;; push a capture group
-                             (:push      (let ((capture (list sp)))
-                                           (push capture stack)
-                                           (push capture groups)))
-                             
-                             ;; pop a capture group
-                             (:pop       (rplacd (pop stack) (list sp)))
-                             
-                             ;; jump to an instruction
-                             (:jump      (setf pc x))
-                             
-                             ;; fork a thread
-                             (:split     (let ((branch (make-re-thread y sp groups stack)))
-                                           (push branch threads)
-                                           (setf pc x)))
-                             
-                             ;; successfully matched, create and return
-                             (:match     (return-from run
-                                           (let ((cs (let (cs)
-                                                       (do ((g (pop groups)
-                                                               (pop groups)))
-                                                           ((null g) cs)
-                                                         (push (subseq s (first g) (second g)) cs)))))
-                                             (make-instance 're-match
-                                                            :start-pos (+ start offset)
-                                                            :end-pos sp
-                                                            :groups cs
-                                                            :match (subseq s (+ start offset) sp)))))))))))
+      ;; step until the thread fails or matches
+      (do ()
+          ((not (destructuring-bind (op &optional x y)
+                    (aref expression pc)
+                  (incf pc)
+                  (case op
+                    
+                    ;; start and end boundaries
+                    (:start   (= sp start))
+                    (:end     (= sp end))
+                    
+                    ;; match any character
+                    (:any     (when (< sp end)
+                                (incf sp)))
+                    
+                    ;; match an exact character
+                    (:char    (when (and (< sp end) (char= (char s sp) x))
+                                (incf sp)))
+                    
+                    ;; match a predicate function
+                    (:one-of  (when (and (< sp end) (funcall x (char s sp)))
+                                (incf sp)))
+                    
+                    ;; fail to match a predicate function
+                    (:none-of (when (and (< sp end) (not (funcall x (char s sp))))
+                                (incf sp)))
+                    
+                    ;; push a capture group
+                    (:push    (let ((capture (list sp)))
+                                (push capture stack)
+                                (push capture groups)))
+                    
+                    ;; pop a capture group
+                    (:pop     (rplacd (pop stack) (list sp)))
+                    
+                    ;; jump to an instruction
+                    (:jump    (setf pc x))
+                    
+                    ;; fork a thread
+                    (:split   (let ((branch (make-re-thread y sp groups stack)))
+                                (push branch threads)
+                                (setf pc x)))
+                    
+                    ;; successfully matched, create and return
+                    (:match   (return-from run
+                                (let ((cs (let (cs)
+                                            (do ((g (pop groups)
+                                                    (pop groups)))
+                                                ((null g) cs)
+                                              (push (subseq s (first g) (second g)) cs)))))
+                                  (make-instance 're-match
+                                                 :start-pos (+ start offset)
+                                                 :end-pos sp
+                                                 :groups cs
+                                                 :match (subseq s (+ start offset) sp)))))))))))))
 
 ;;; ----------------------------------------------------
 
