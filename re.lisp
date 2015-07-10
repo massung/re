@@ -259,38 +259,31 @@
                       (#\% (escape stream))
                       
                       ;; conditional pattern
-                      (#\| (let ((else (parse-re stream t)))
-                             (prog1 (list :or tokens else)
-                               (setf tokens nil))))
+                      (#\| (progn (push tokens stack)
+                             (setf tokens nil)))
                       
                       ;; character sets
                       (#\[ (let ((exclusive-p (take-char stream #\^)))
                              (list (if exclusive-p :none-of :one-of) (charset stream))))
                       
-                      ;; reserved for character set
+                      ;; reserved tokens
                       (#\] (error "Unexpected ']' in re pattern"))
+                      (#\) (error "Unexpected ')' in re pattern"))
                       
                       ;; push a new group onto the stack
-                      (#\( (let ((no-capture-p (take-char stream #\?)))
-                             
-                             ;; push the current token list to the stack
-                             (push tokens stack)
-                             
-                             ;; push the group action to the stack
-                             (push (not no-capture-p) stack)
-                             
-                             ;; create a new token list
-                             (setf tokens nil)))
-                      
-                      ;; pop a group
-                      (#\) (cond ((null stack) (error "Unexpected ')' in re pattern"))
-                                 ((null tokens) (error "Empty group in re pattern"))
+                      (#\( (let ((no-capture-p (take-char stream #\?))
 
-                                 ;; pop the stack and create the group token
-                                 (t (prog1 (if (pop stack)
-                                               (list :capture (append '((:push)) tokens '((:pop))))
-                                             (list :ignore tokens))
-                                      (setf tokens (pop stack))))))
+                                 ;; parse what's inside the group recursively
+                                 (group (parse-re stream t)))
+
+                             ;; perform a sanity check
+                             (unless (eql (read-char stream nil nil) #\))
+                               (error "Missing ')' in re pattern"))
+
+                             ;; return a capture or just a list of tokens
+                             (if no-capture-p
+                                 (list :ignore group)
+                               (list :capture (append '((:push)) group '((:pop)))))))
                       
                       ;; pattern boundaries
                       (#\^ (if (= (file-position stream) 1) '(:start) (list :char c)))
@@ -313,16 +306,16 @@
         ;; collect them all (as a stack)
         when token do (push token tokens)
         
-        ;; return all the tokens parsed - add the match token at the end
-        finally (cond (stack (error "Missing ')' in re pattern"))
+        ;; return all the tokens parsed
+        finally (return (if (null tokens)
+                            (error "Empty~@[ '|' in~] re pattern" stack)
 
-                      ;; if there were no tokens parsed then it's an empty pattern/group
-                      ((null tokens) (error "Empty~@[ '|' in~] re pattern" recursive-p))
-
-                      ;; otherwise return the tokens, append the :match token
-                      (t (return (reverse (if recursive-p
-                                              tokens
-                                            (cons '(:match) tokens))))))))
+                          ;; traverse the stack and create all the choices
+                          (loop for choice in stack
+                                do (setf tokens (list (list :or choice tokens)))
+                                finally (return (reverse (if recursive-p
+                                                             tokens
+                                                           (cons '(:match) tokens)))))))))
 
 ;;; ----------------------------------------------------
 
