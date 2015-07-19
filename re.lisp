@@ -312,7 +312,7 @@
 
                           ;; traverse the stack and create all the choices
                           (loop for choice in stack
-                                do (setf tokens (list (list :or choice tokens)))
+                                do (setf tokens (list (list :or choice (reverse tokens))))
                                 finally (return (reverse (if recursive-p
                                                              tokens
                                                            (cons '(:match) tokens)))))))))
