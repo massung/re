@@ -74,28 +74,6 @@
 
 ;;; ----------------------------------------------------
 
-(defmethod make-load-form ((re re) &optional env)
-  "Tell the system how to save and load a regular expression to a FASL."
-  `(compile-re ,(re-pattern re)))
-
-;;; ----------------------------------------------------
-
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (flet ((dispatch-re (s c n)
-           (declare (ignorable c n))
-           (let ((re (with-output-to-string (re)
-                       (loop for c = (read-char s t nil t) :do
-                         (case c
-                           (#\/ (return))
-                           (#\\ (let ((c (read-char s t nil t)))
-                                  (princ c re)))
-                           (otherwise
-                            (princ c re)))))))
-             (compile-re re))))
-    (set-dispatch-macro-character #\# #\/ #'dispatch-re)))
-
-;;; ----------------------------------------------------
-
 (defun tab-p (c)
   "T if c is a tab character."
   (char= c #\tab))
@@ -586,3 +564,26 @@
                    (princ (subseq s pos (match-pos-start match)) rep)
                    (princ (if (functionp with) (funcall with match) with) rep)
                    (setf pos (match-pos-end match))))))))
+
+;;; ----------------------------------------------------
+
+(defmethod make-load-form ((re re) &optional env)
+  "Tell the system how to save and load a regular expression to a FASL."
+  (declare (ignore env))
+  `(compile-re ,(re-pattern re)))
+
+;;; ----------------------------------------------------
+
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (flet ((dispatch-re (s c n)
+           (declare (ignorable c n))
+           (let ((re (with-output-to-string (re)
+                       (loop for c = (read-char s t nil t) :do
+                         (case c
+                           (#\/ (return))
+                           (#\\ (let ((c (read-char s t nil t)))
+                                  (princ c re)))
+                           (otherwise
+                            (princ c re)))))))
+             (compile-re re))))
+    (set-dispatch-macro-character #\# #\/ #'dispatch-re)))
