@@ -1,6 +1,6 @@
-;;;; Regular Expression Pattern Matching for Common Lisp
+;;;; Regular Expressions for Common Lisp
 ;;;;
-;;;; Copyright (c) 2012 by Jeffrey Massung
+;;;; Copyright (c) Jeffrey Massung
 ;;;;
 ;;;; This file is provided to you under the Apache License,
 ;;;; Version 2.0 (the "License"); you may not use this file
@@ -139,7 +139,7 @@
       (#\b (let ((b1 (take-char stream))
                  (b2 (take-char stream)))
              (list :bounds `((:char ,b1)) `((:char ,b2)))))
-      
+
       ;; named inclusive sets
       (#\s (list :one-of #'space-p))
       (#\t (list :one-of #'tab-p))
@@ -151,7 +151,7 @@
       (#\w (list :one-of #'word-char-p))
       (#\x (list :one-of #'hex-char-p))
       (#\p (list :one-of #'punctuation-p))
-      
+
       ;; named exclusive sets
       (#\S (list :none-of #'space-p))
       (#\T (list :none-of #'tab-p))
@@ -163,7 +163,7 @@
       (#\W (list :none-of #'word-char-p))
       (#\X (list :none-of #'hex-char-p))
       (#\P (list :none-of #'punctuation-p))
-      
+
       ;; just an escaped character
       (otherwise (list :char c)))))
 
@@ -183,29 +183,29 @@
                        (escape stream)
                      (declare (ignore extra))
                      (case test
-                       
+
                        ;; special case
                        (:bounds (error "Cannot have %b in a character set"))
-                       
+
                        ;; inclusive and exclusive predicates
                        (:one-of  `(funcall ,predicate $_))
                        (:none-of `(not (funcall ,predicate $_)))
-                       
+
                        ;; simple character, no ranging allowed
                        (:char `(char= ,predicate $_))))
-                 
+
                  ;; just a simple character, check for a character range
                  (let ((v (take-char stream #\-)))
                    (cond ((null v) `(char= $_ ,c))
-                         
+
                          ;; if - is followed by end, unread and add a character predicate
                          ((eql (peek-char nil stream) #\])
                           (prog1 `(char= $_ ,c)
                             (unread-char v stream)))
-                         
+
                          ;; a valid range of characters
                          (t `(char<= ,c $_ ,(read-char stream))))))))
-             
+
         ;; add the predicate to the list (order doesn't matter)
         (push p ps)))))
 
@@ -223,7 +223,7 @@
   "Parse a regular expression pattern into a token form."
   (loop with stack = nil
         with tokens = nil
-        
+
         ;; check every character
         for c = (peek-char nil stream nil)
 
@@ -232,22 +232,22 @@
 
         ;; parse the next token
         for token = (case (read-char stream)
-                      
+
                       ;; escape characters
                       (#\% (escape stream))
-                      
+
                       ;; conditional pattern
                       (#\| (progn (push tokens stack)
                              (setf tokens nil)))
-                      
+
                       ;; character sets
                       (#\[ (let ((exclusive-p (take-char stream #\^)))
                              (list (if exclusive-p :none-of :one-of) (charset stream))))
-                      
+
                       ;; reserved tokens
                       (#\] (error "Unexpected ']' in re pattern"))
                       (#\) (error "Unexpected ')' in re pattern"))
-                      
+
                       ;; push a new group onto the stack
                       (#\( (let ((no-capture-p (take-char stream #\?))
 
@@ -262,28 +262,28 @@
                              (if no-capture-p
                                  (list :ignore group)
                                (list :capture (append '((:push)) group '((:pop)))))))
-                      
+
                       ;; pattern boundaries
                       (#\^ (if (= (file-position stream) 1) '(:start) (list :char c)))
                       (#\$ (if (null (peek-char nil stream nil)) '(:end) (list :char c)))
-                      
+
                       ;; satisfy any character
                       (#\. (list :any))
-                      
+
                       ;; optional expressions
                       (#\? (rep :? (pop tokens)))
-                      
+
                       ;; repeat expressions
                       (#\+ (rep :+ (pop tokens)))
                       (#\* (rep :* (pop tokens)))
                       (#\- (rep :- (pop tokens)))
-                      
+
                       ;; simply match an exact character
                       (otherwise (list :char c)))
 
         ;; collect them all (as a stack)
         when token do (push token tokens)
-        
+
         ;; return all the tokens parsed
         finally (return (if (null tokens)
                             (error "Empty~@[ '|' in~] re pattern" stack)
@@ -341,7 +341,7 @@
                                 (compile-jump again)
                                 (compile-branch done)
                                 (compile-tokens y)))
-                                
+
                      ;; capture and ignore groups
                      ((:capture :ignore) (compile-tokens x))
 
@@ -419,43 +419,43 @@
                     (aref expression pc)
                   (incf pc)
                   (case op
-                    
+
                     ;; start and end boundaries
                     (:start   (= sp start))
                     (:end     (= sp end))
-                    
+
                     ;; match any character
                     (:any     (when (< sp end)
                                 (incf sp)))
-                    
+
                     ;; match an exact character
                     (:char    (when (and (< sp end) (char= (char s sp) x))
                                 (incf sp)))
-                    
+
                     ;; match a predicate function
                     (:one-of  (when (and (< sp end) (funcall x (char s sp)))
                                 (incf sp)))
-                    
+
                     ;; fail to match a predicate function
                     (:none-of (when (and (< sp end) (not (funcall x (char s sp))))
                                 (incf sp)))
-                    
+
                     ;; push a capture group
                     (:push    (let ((capture (list sp)))
                                 (push capture stack)
                                 (push capture groups)))
-                    
+
                     ;; pop a capture group
                     (:pop     (rplacd (pop stack) (list sp)))
-                    
+
                     ;; jump to an instruction
                     (:jump    (setf pc x))
-                    
+
                     ;; fork a thread
                     (:split   (let ((branch (make-re-thread y sp groups stack)))
                                 (push branch threads)
                                 (setf pc x)))
-                    
+
                     ;; successfully matched, create and return
                     (:match   (return-from run
                                 (let ((cs (let (cs)
