@@ -222,8 +222,8 @@
 
       ;; user-defined predicate
       (#\: (let ((sym (with-output-to-string (s)
-                        (do ((c (take-char stream)
-                                (take-char stream)))
+                        (do ((c (read-char stream)
+                                (read-char stream)))
                             ((eql c #\:))
                           (write-char c s)))))
              (values :is (read-from-string sym))))
