@@ -1,6 +1,8 @@
 # The RE Package
 
-The `re` package is a small, portable, lightweight, and quick, regular expression library for Common Lisp. It is a non-recursive, backtracing VM. The syntax is similar to [Lua](http://www.lua.org)-style pattern patching (found [here](http://www.lua.org/pil/20.2.html)), but has added support for additional regex features (see below). It's certainly not the fastest, but is easy to understand and extend.
+The `re` package is a small, portable, lightweight, and quick, regular expression library for Common Lisp. It is a non-recursive, backtracing VM. The syntax is similar to [Lua](http://www.lua.org)-style pattern patching (found [here](http://www.lua.org/pil/20.2.html)), but has added support for additional regex features (see below). It's certainly not the fastest, but is very easy to understand and extend.
+
+It makes heavy use of the monadic [`parse`](http://github.com/massung/parse) combinator library for parsing the regular expressions. If you'd like to understand the parsing and compiling of regular expressions, I recommend reading up on that library as well.
 
 ## Compiling Patterns
 
