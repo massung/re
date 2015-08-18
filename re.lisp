@@ -112,7 +112,7 @@
 
 ;;; ----------------------------------------------------
 
-(defparser re-parser
+(define-parser re-parser
   "A regular expression is one or more expressions."
   (.let (ex (.many1 're-expr))
     (.opt ex (.let (otherwise (>> (.is :or) 're-parser))
@@ -120,7 +120,7 @@
 
 ;;; ----------------------------------------------------
 
-(defparser re-expr
+(define-parser re-expr
   "A single character, set, or loop of expressions."
   (.let (e (.one-of 're-boundary
                     're-bounds
@@ -134,21 +134,21 @@
 
 ;;; ----------------------------------------------------
 
-(defparser re-boundary
+(define-parser re-boundary
   "The start or end of a string."
   (.one-of (>> (.is :start) (.ret (list :start)))
            (>> (.is :end) (.ret (list :end)))))
 
 ;;; ----------------------------------------------------
 
-(defparser re-bounds
+(define-parser re-bounds
   "Lua-style %b bounds."
   (.let (bs (.is :bounds))
     (.ret (cons :bounds bs))))
 
 ;;; ----------------------------------------------------
 
-(defparser re-char
+(define-parser re-char
   "Match any character, exact character, or predicate function."
   (.one-of (>> (.is :any) (.ret '(:any)))
 
@@ -158,7 +158,7 @@
 
 ;;; ----------------------------------------------------
 
-(defparser re-set
+(define-parser re-set
   "Match from a set of characters."
   (.let* ((exclusive (.is :set))
           (predicates 're-set-chars))
@@ -168,7 +168,7 @@
 
 ;;; ----------------------------------------------------
 
-(defparser re-set-chars
+(define-parser re-set-chars
   "Characters, character ranges, and named character sets."
   (.many-until (.one-of (.is :is)
 
@@ -185,7 +185,7 @@
 
 ;;; ----------------------------------------------------
 
-(defparser re-set-char
+(define-parser re-set-char
   "Valid characters in a character set."
   (.one-of (.is :char)
 
@@ -200,7 +200,7 @@
 
 ;;; ----------------------------------------------------
 
-(defparser re-group
+(define-parser re-group
   "Match an optionally captured group."
   (.let* ((ignorep (.is :group))
           (xs 're-parser))
