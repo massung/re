@@ -115,29 +115,31 @@
 (define-parser re-parser
   "A regular expression is one or more expressions."
   (.let (ex (.many1 're-expr))
-    (.opt ex (.let (otherwise (>> (.is :or) 're-parser))
+    (.opt ex (.let (otherwise (.do (.is :or) 're-parser))
                (.ret `((:or ,ex ,otherwise)))))))
 
 ;;; ----------------------------------------------------
 
 (define-parser re-expr
   "A single character, set, or loop of expressions."
-  (.let (e (.one-of 're-boundary
-                    're-bounds
-                    're-char
-                    're-set
-                    're-group))
-    (.opt e (.one-of (>> (.is :*) (.ret (list :* e)))
-                     (>> (.is :-) (.ret (list :- e)))
-                     (>> (.is :+) (.ret (list :+ e)))
-                     (>> (.is :?) (.ret (list :? e)))))))
+  (.let (e (.or 're-boundary
+                're-bounds
+                're-char
+                're-set
+                're-group))
+
+    ;; check to see if there is a following iteration token
+    (.opt e (.or (.do (.is :*) (.ret (list :* e)))
+                 (.do (.is :-) (.ret (list :- e)))
+                 (.do (.is :+) (.ret (list :+ e)))
+                 (.do (.is :?) (.ret (list :? e)))))))
 
 ;;; ----------------------------------------------------
 
 (define-parser re-boundary
   "The start or end of a string."
-  (.one-of (>> (.is :start) (.ret (list :start)))
-           (>> (.is :end) (.ret (list :end)))))
+  (.or (.do (.is :start) (.ret (list :start)))
+       (.do (.is :end) (.ret (list :end)))))
 
 ;;; ----------------------------------------------------
 
@@ -150,11 +152,11 @@
 
 (define-parser re-char
   "Match any character, exact character, or predicate function."
-  (.one-of (>> (.is :any) (.ret '(:any)))
+  (.or (.do (.is :any) (.ret '(:any)))
 
-           ;; predicates and exact characters
-           (.let (p (.is :is)) (.ret (list :is p)))
-           (.let (c (.is :char)) (.ret (list :char c)))))
+       ;; predicates and exact characters
+       (.let (p (.is :is)) (.ret (list :is p)))
+       (.let (c (.is :char)) (.ret (list :char c)))))
 
 ;;; ----------------------------------------------------
 
@@ -170,15 +172,15 @@
 
 (define-parser re-set-chars
   "Characters, character ranges, and named character sets."
-  (.many-until (.one-of (.is :is)
+  (.many-until (.or (.is :is)
 
-                        ;; exact character
-                        (.let (a 're-set-char)
+                    ;; exact character
+                    (.let (a 're-set-char)
 
-                          ;; range of characters?
-                          (.one-of (.let (z (>> (.is :-) 're-set-char))
-                                     (.ret #'(lambda (c) (char<= a c z))))
-                                   (.ret #'(lambda (c) (char= c a))))))
+                      ;; range of characters?
+                      (.or (.let (z (.do (.is :-) 're-set-char))
+                             (.ret #'(lambda (c) (char<= a c z))))
+                           (.ret #'(lambda (c) (char= c a))))))
 
                ;; stop at the end of the set
                (.is :end-set)))
@@ -187,16 +189,16 @@
 
 (define-parser re-set-char
   "Valid characters in a character set."
-  (.one-of (.is :char)
+  (.or (.is :char)
 
-           ;; special characters are aren't special in a set
-           (>> (.is :any) (.ret #\.))
-           (>> (.is :or) (.ret #\|))
-           (>> (.is :*) (.ret #\*))
-           (>> (.is :+) (.ret #\+))
-           (>> (.is :?) (.ret #\?))
-           (>> (.is :group) (.ret #\())
-           (>> (.is :end-group) (.ret #\)))))
+       ;; special characters are aren't special in a set
+       (.do (.is :any) (.ret #\.))
+       (.do (.is :or) (.ret #\|))
+       (.do (.is :*) (.ret #\*))
+       (.do (.is :+) (.ret #\+))
+       (.do (.is :?) (.ret #\?))
+       (.do (.is :group) (.ret #\())
+       (.do (.is :end-group) (.ret #\)))))
 
 ;;; ----------------------------------------------------
 
@@ -204,8 +206,8 @@
   "Match an optionally captured group."
   (.let* ((ignorep (.is :group))
           (xs 're-parser))
-    (>> (.is :end-group)
-        (.ret (list (if ignorep :ignore :capture) xs)))))
+    (.do (.is :end-group)
+         (.ret (list (if ignorep :ignore :capture) xs)))))
 
 ;;; ----------------------------------------------------
 
