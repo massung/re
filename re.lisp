@@ -195,6 +195,7 @@
        (.do (.is :any) (.ret #\.))
        (.do (.is :or) (.ret #\|))
        (.do (.is :*) (.ret #\*))
+       (.do (.is :-) (.ret #\-))
        (.do (.is :+) (.ret #\+))
        (.do (.is :?) (.ret #\?))
        (.do (.is :group) (.ret #\())
