@@ -172,18 +172,18 @@
 
 (define-parser re-set-chars
   "Characters, character ranges, and named character sets."
-  (.many-until (.or (.is :is)
+  (.let (ps (.many1 (.or (.is :is)
 
-                    ;; exact character
-                    (.let (a 're-set-char)
+                         ;; exact character
+                         (.let (a 're-set-char)
 
-                      ;; range of characters?
-                      (.or (.let (z (.do (.is :-) 're-set-char))
-                             (.ret #'(lambda (c) (char<= a c z))))
-                           (.ret #'(lambda (c) (char= c a))))))
+                           ;; range of characters?
+                           (.or (.let (z (.do (.is :-) 're-set-char))
+                                  (.ret #'(lambda (c) (char<= a c z))))
+                                (.ret #'(lambda (c) (char= c a))))))))
 
-               ;; stop at the end of the set
-               (.is :end-set)))
+    ;; match the end of the set and return the predicates
+    (.do (.is :end-set) (.ret ps))))
 
 ;;; ----------------------------------------------------
 
