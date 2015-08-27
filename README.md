@@ -145,7 +145,7 @@ In addition to supporting all of what Lua pattern matching has to offer, it also
 
 Finally, the `re` package has one special feature: user-defined character set predicates! Using `%:`, you can provide a predicate function for the regexp VM to test characters against.
 
-    CL-USER > (match-re "%:digit-char-p:+" "103")
+    CL-USER > (match-re #r"%:digit-char-p:+" "103")
     #<RE-MATCH "103">
 
 The predicate must take a single character and return non-nil if the character matches the predicate function. *Note: this is especially handy when parsing unicode strings!*
