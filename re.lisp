@@ -20,10 +20,6 @@
 (defpackage :re
   (:use :cl :parse)
   (:export
-   #:re
-   #:re-match
-
-   ;; macros
    #:with-re
    #:with-re-match
 
