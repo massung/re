@@ -581,7 +581,8 @@
     (let ((m (run (re-expression re) s start end)))
       (if (not exact)
           m
-        (and (= (match-pos-end m) end) m)))))
+        (when m
+          (and (= (match-pos-end m) end) m))))))
 
 ;;; ----------------------------------------------------
 
