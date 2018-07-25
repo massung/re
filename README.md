@@ -171,12 +171,12 @@ The `selection` filters the subset obtained with the `set` parameter, returning 
 
 As an `re-capture` in its completeness might not be desiderated, the vector or single ``re-capture'' instance(s) might be replaced via the `component` argument:
 
-* `capture` simply returns each `re-capture` instance unmodified
-* `substring` extracts the substring from each `re-capture`
-* `start-position` extracts the start position of the group in the input string
-* `end-position` extracts the end position of the group in the input string
-* `start-and-end-position` extracts the start and end position as a two-item list (start end)
-* `name` extract the group name, which might be `NIL` if an unnamed group
+* `:capture` simply returns each `re-capture` instance unmodified
+* `:substring` extracts the substring from each `re-capture`
+* `:start-position` extracts the start position of the group in the input string
+* `:end-position` extracts the end position of the group in the input string
+* `:start-and-end-position` extracts the start and end position as a two-item list (start end)
+* `:name` extract the group name, which might be `NIL` if an unnamed group
 
 Failure to obtain a group usually returns the `NIL` value. This behavior might be modified by setting a different substitution through the `default` parameter.
 
