@@ -218,6 +218,75 @@ Finally, the `re` package has one special feature: user-defined character set pr
 
 The predicate must take a single character and return non-nil if the character matches the predicate function. *Note: this is especially handy when parsing unicode strings!*
 
+
+
+## Ranged Quantifiers
+
+Additional to the quantifiers `?` (zero or one repetitions), `*` (zero or more repetitions), and `+` (one or more repetitions), a “ranged quantifier” is available. This comprises a family of adjustable iteration checkers, by default enclosed within `{` and `}`.
+
+The family consists of these three variants:
+
+| Variant  | Description                                                  |
+| -------- | ------------------------------------------------------------ |
+| `{[…]}`  | A range of inclusive bounds.                                 |
+| `{=…}`   | A sequence of valid repetitions.                             |
+| `{%:…:`} | A user-defined function to check for desiderated iterations. |
+
+
+### Ranges
+
+The instigating brace `{` must be immediately followed by the opening square bracket `[` to form `{[`. Further white spaces are ignored. The complete syntax — albeit variations are extant — is as follows:
+
+    {[MINIMUM, MAXIMUM]}
+
+Only integer numbers greater or equal to 0, white spaces and omissions are valid. The syntax resembles that of Java and Perl, equal also in its variations:
+
+| Syntax                       | Description | Example
+| ---------------------------- | --- | --- |
+| `{[*MINIMUM,MAXIMUM*]}`      | The number of repetitions must be between *MINIMUM* and *MAXIMUM*, both bounds construed as inclusive. | `{[2,8]}` |
+| `{[*MINIMUM*,]}`             | The number of repetitions must be at least *MINIMUM*, with no maximum required. Hence, *MAXIMUM* defaults to “infinity”. | `{[2,]}` |
+| `{[,*MAXIMUM*]}`             | The number of repetitions must be at most *MAXIMUM*, with no minimum required. Hence, *MINIMUM* defaults to zero. | `{[,10]}` |
+| `{[*REPETITIONS*]}`          | The number of repetitions must exactly equal *REPETITIONS*. This is commensurately equivalent to the syntax `{[*MINIMUM*,*MINIMUM*]}`. | `{[4]}` |
+
+
+### Number set
+
+The number of repetitions must equal one of those numbers in the sequence. This sequence is a comma-separated list of integer values greater or equal to zero. Redudant entries are permitted but meaningless. The equal sign must follow immediately after the opening brace to form `{=`, further white spaces are ignored.
+
+The syntax is:
+    {= a, b, c, …, d}
+
+Examples:
+
+    CL-USER > (match-re "a{=1,3,5}b" "aaab")
+    #<RE-MATCH "aaab">
+
+    CL-USER > (match-re "a{=1,3,5}b" "aab")
+    NIL
+
+
+### User-defined Function
+
+The indagation whether the number of repetitions is valid is delegated to a global function *USER-FUNCTION*, the same must accept exactly one argument, the current number of iterations, and return a generalized boolean being `T` if the iterations are valid, and `NIL` upon invalidity. The syntax is:
+
+    {%:USER-FUNCTION%:}
+
+The signature, in corollary, complies to:
+
+    lambda(number-of-repetitions) => generalized-boolean
+
+Some examples to illustrate:
+
+    (defun even-number-of-repetitions-p (counter)
+      (evenp counter))
+
+    (match-re "a{%:even-number-of-repetitions-p:}b" "aab")
+    #<RE-MATCH "aab">
+    
+    (match-re "a{%:even-number-of-repetitions-p:}b" "aaab")
+    NIL
+
+
 ## Regular Engine Configuration
 
 A few instances of the regular expression engine behavior are adjustable, especially with the purpose of counteracting against undesired reservation of common characters like `{`, `}`, and `!` by the engine's features, and to retain compatibility with previous versions of the `re` library. The configurating entity is the class `re-configuration`, whose global instance `*re-configuration*` can be queried and modified by the following accessor functions:
@@ -227,6 +296,18 @@ A few instances of the regular expression engine behavior are adjustable, especi
 * `re-configuration-named-capture-name-starter` designates the character utilized to start the group name portion of a named captured group, defaulting to `#\<`
 * `re-configuration-named-capture-name-ender` designates the character utilized to mark the end of the group name portion of a named captured group, defaulting to `#\>`
 * `re-configuration-permit-ranged-quantifiers`, adjustable with a generalized boolean, determines whether ranged quantifiers of the type `{…}` are recognized at all
+
+An example follows:
+
+    (setf (re-configuration-named-capture-marker       *re-configuration*) #\+)
+    (setf (re-configuration-named-capture-name-starter *re-configuration*) #\[)
+    (setf (re-configuration-named-capture-name-ender   *re-configuration*) #\])
+    
+    (with-re-match (match (match-re "(+[year]%d{=2,4})/(+[month]%d{[1,2]})/(+[day]%d{=2})" "2018/05/31"))
+      (format T "~&Year:  ~a~%" ($-> "year"  :first :substring))
+      (format T "~&Month: ~a~%" ($-> "month" :first :substring))
+      (format T "~&Day:   ~a~%" ($-> "day"   :first :substring)))
+
 
 # Thank You!
 
