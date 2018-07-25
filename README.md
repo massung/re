@@ -43,9 +43,24 @@ Once you have successfully matched and have a `re-match` object, you can use the
 
 * `match-string` returns the entire match
 * `match-groups` returns a list of groups
-* `match-captures` returns a vector of extended captured groups, comprising substring, optional name, start index, and end index
+* `match-captures` returns a vector of extended captured groups, each an instance of the `re-capture` class, comprising substring, optional name, start index, and end index
 * `match-pos-start` returns the index where the match began
 * `match-pos-end` returns the index where the match ended
+
+Further functions exists specialized on the captured groups retrieval:
+
+* `match-capture-at-index` returns the group at the given index
+* `match-captures-by-name` returns a vector of named captured groups with the given name
+* `match-capture-by-name` returns either the first or the last named captured group with the given name
+* `match-capture-by-name-at-index` returns the `index`-th named captured group
+* `match-has-capture-of-name` return `T` if at least one named captured group with the given name exists, otherwise `NIL`
+* `match-extract-data` procures a generalized access to the captured groups and their data
+
+The `re-capture` class offers following reader functions:
+* `re-capture-substring` returns the substring of the input string enclosed in the group
+* `re-capture-start-position` returns the start position of the captured group in the input string
+* `re-capture-end-position` returns the end position of the captured group in the input string
+* `re-capture-name` returns the name of the named captured group, or `NIL` if the group is unnamed
 
 Try peeking into a match...
 
@@ -202,6 +217,16 @@ Finally, the `re` package has one special feature: user-defined character set pr
     #<RE-MATCH "103">
 
 The predicate must take a single character and return non-nil if the character matches the predicate function. *Note: this is especially handy when parsing unicode strings!*
+
+## Regular Engine Configuration
+
+A few instances of the regular expression engine behavior are adjustable, especially with the purpose of counteracting against undesired reservation of common characters like `{`, `}`, and `!` by the engine's features, and to retain compatibility with previous versions of the `re` library. The configurating entity is the class `re-configuration`, whose global instance `*re-configuration*` can be queried and modified by the following accessor functions:
+
+* `re-configuration-permit-named-captures`, adjustable with a generalized boolean, determines whether named captured groups are recognized at all (`T`) or not (`NIL`)
+* `re-configuration-named-capture-marker` designates the character utilized to distinguish an unnamed or ignored group from a named one, defaulting to `#\!`
+* `re-configuration-named-capture-name-starter` designates the character utilized to start the group name portion of a named captured group, defaulting to `#\<`
+* `re-configuration-named-capture-name-ender` designates the character utilized to mark the end of the group name portion of a named captured group, defaulting to `#\>`
+* `re-configuration-permit-ranged-quantifiers`, adjustable with a generalized boolean, determines whether ranged quantifiers of the type `{…}` are recognized at all
 
 # Thank You!
 
