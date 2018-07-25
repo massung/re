@@ -43,6 +43,7 @@ Once you have successfully matched and have a `re-match` object, you can use the
 
 * `match-string` returns the entire match
 * `match-groups` returns a list of groups
+* `match-captures` returns a vector of extended captured groups, comprising substring, optional name, start index, and end index
 * `match-pos-start` returns the index where the match began
 * `match-pos-end` returns the index where the match ended
 
@@ -116,9 +117,22 @@ Captures can be nested, but are always returned in the order they are **opened**
 
 *HINT: you can always use the `match-string` function to get at the full text that was matched and there's no need to capture the entire pattern.*
 
+## Named Groups
+
+An extended method of addressing captured groups, or simply “captures”, constitutes the definition of named captured groups. These are based upon the parentheses syntax of ordinary captured groups, with the opening parenthesis being followed by the “!” marker to designate the named variant. The basic syntax adheres to: `(!<GROUP-NAME>)`, with the `GROUP-NAME`, enclosed between the markers `<` and `>` being any character string — even white spaces — apart from the `>` group name end determinator.
+
+    CL-USER > (match-captures (match-re "(!<number>%d+)" "123abc"))
+    #(#<re-capture start=0, end=3, substring="123", name=number>)
+
+These names are not confined to uniqueness, acting in some sense as “tags”: An arbitrary number of named captured groups with the same denomination may be defined. The following example retrieves four named captures, each with the name “letter”:
+
+    CL-USER > (match-captures (match-re "(!<letter>%a)+" "abcd"))
+    #(#<re-capture start=0, end=1, substring="a", name=letter> #<re-capture start=1, end=2, substring="b", name=letter> #<re-capture start=2, end=3, substring="c", name=letter> #<re-capture start=3, end=4, substring="d", name=letter>)
+
+
 ## The `with-re-match` Macro
 
-Whe `with-re-match` macro can be used to assist in extracting the matched patterns and groups.
+The `with-re-match` macro can be used to assist in extracting the matched patterns and groups.
 
     (with-re-match ((var match-expr &key no-match) &body body)
 
@@ -135,6 +149,8 @@ While in the body of the macro, `$$` will be bound to the `match-string` and the
                          (format nil "~@(~a~)." $1))))
                 (replace-re #r/(%a)%a+%s*/ #'initial "lisp in small pieces" :all t))
     "L.I.S.P."
+
+An additional local function `$->` permits a generalized access to captured groups.
 
 ## Additional Features
 
