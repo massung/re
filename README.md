@@ -164,9 +164,9 @@ The `set` determines the subset of captured groups to retrieve, always a vector 
 
 The `selection` filters the subset obtained with the `set` parameter, returning either a vector of a single ``re-capture'' object. The argument expects one of these:
 
-* `all` simply returns the existing subset
-* `first` obtains the first group, or the default value upon the subset's dearth of items
-* `last` obtains the last group, or the default value upon the subset's dearth of items
+* `:all` simply returns the existing subset
+* `:first` obtains the first group, or the default value upon the subset's dearth of items
+* `:last` obtains the last group, or the default value upon the subset's dearth of items
 * `index` constitutes an integer greater or equal to 0 which references the item to select from the subset
 
 As an `re-capture` in its completeness might not be desiderated, the vector or single ``re-capture'' instance(s) might be replaced via the `component` argument:
