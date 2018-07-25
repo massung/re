@@ -247,7 +247,39 @@ Only integer numbers greater or equal to 0, white spaces and omissions are valid
 | `{[*MINIMUM*,]}`             | The number of repetitions must be at least *MINIMUM*, with no maximum required. Hence, *MAXIMUM* defaults to “infinity”. | `{[2,]}` |
 | `{[,*MAXIMUM*]}`             | The number of repetitions must be at most *MAXIMUM*, with no minimum required. Hence, *MINIMUM* defaults to zero. | `{[,10]}` |
 | `{[*REPETITIONS*]}`          | The number of repetitions must exactly equal *REPETITIONS*. This is commensurately equivalent to the syntax `{[*MINIMUM*,*MINIMUM*]}`. | `{[4]}` |
+| `{[,]}`                      | The number of repetitions is unbounded (“infinite”) on both ends. In consectary, this is synonymous to the `*` quantifier. |
 
+Some examples shall demonstrate these features:
+
+    (match-re "a{[2,4]}b" "aaab")
+    #<RE-MATCH "aaab">
+
+    ;; Too few "a" occurrences.
+    (match-re "a{[2,4]}b" "ab")
+    NIL
+
+    ;; Too many "a" occurrences.
+    (match-re "a{[2,4]}b" "aaaaab")
+    NIL
+
+    (match-re "a{[2,]}b" "aaaaaaaaaaaaaaaaab")
+    #<RE-MATCH "aaaaaaaaaaaaaaaaab">
+
+    (match-re "a{[,4]}b" "aaaab")
+    #<RE-MATCH "aaaab">
+
+    ;; Too many "a" occurrences.
+    (match-re "a{[,4]}b" "aaaaaaaaaaaaaaaaab")
+    NIL
+    
+    (match-re "a{[3,3]}b" "aaab")
+    #<RE-MATCH "aaab">
+
+    (match-re "a{[3]}b" "aaab")
+    #<RE-MATCH "aaab">
+
+    (match-re "a{[,]}b" "aaab")
+    #<RE-MATCH "aaab">
 
 ### Number set
 
