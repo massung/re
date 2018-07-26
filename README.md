@@ -170,30 +170,30 @@ An additional local function `$->` permits a generalized access to captured grou
     ($-> (set &optional (selection :all) (component :capture) (default NIL)))
 
 
-The `set` determines the subset of captured groups to retrieve, always a vector of ``re-capture'' instances, valid options being:
+The `set` determines the subset of captured groups to retrieve, always a vector of `re-capture` instances, valid options being:
 
 * `:all-groups` selects all groups, named and unnamed
 * `:named-groups` selects named groups only
 * `:unnamed-groups` selects unnamed groups only
 * `group-name` is a string designating the name of the groups to select
 
-The `selection` filters the subset obtained with the `set` parameter, returning either a vector of a single ``re-capture'' object. The argument expects one of these:
+The `selection` filters the subset obtained with the `set` parameter, returning either a vector of `re-capture`s or a single `re-capture` object. The argument expects one of these values:
 
 * `:all` simply returns the existing subset
 * `:first` obtains the first group, or the default value upon the subset's dearth of items
 * `:last` obtains the last group, or the default value upon the subset's dearth of items
 * `index` constitutes an integer greater or equal to 0 which references the item to select from the subset
 
-As an `re-capture` in its completeness might not be desiderated, the vector or single ``re-capture'' instance(s) might be replaced via the `component` argument:
+As an `re-capture` in its completeness might not be desiderated, the vector or single `re-capture` instance(s) might be replaced via the `component` argument:
 
 * `:capture` simply returns each `re-capture` instance unmodified
 * `:substring` extracts the substring from each `re-capture`
 * `:start-position` extracts the start position of the group in the input string
 * `:end-position` extracts the end position of the group in the input string
 * `:start-and-end-position` extracts the start and end position as a two-item list (start end)
-* `:name` extract the group name, which might be `NIL` if an unnamed group
+* `:name` extracts the group name, which might be `NIL` in the case of an unnamed group
 
-Failure to obtain a group usually returns the `NIL` value. This behavior might be modified by setting a different substitution through the `default` parameter.
+Failure to obtain a group usually results in the `NIL` value. This behavior might be modified by setting a different substitution through the `default` parameter.
 
     CL-USER > (with-re-match (match (match-re "(!<year>%d{=2,4})/(!<month>%d{[1,2]})/(!<day>%d{=2})" "2018/05/31"))
                 (format T "~&Year:  ~a~%" ($-> "year"  :first :substring))
@@ -218,13 +218,11 @@ Finally, the `re` package has one special feature: user-defined character set pr
 
 The predicate must take a single character and return non-nil if the character matches the predicate function. *Note: this is especially handy when parsing unicode strings!*
 
-
-
 ## Ranged Quantifiers
 
-Additional to the quantifiers `?` (zero or one repetitions), `*` (zero or more repetitions), and `+` (one or more repetitions), a “ranged quantifier” is available. This comprises a family of adjustable iteration checkers, by default enclosed within `{` and `}`.
+In addition to the quantifiers `?` (zero or one repetitions), `*` (zero or more repetitions), and `+` (one or more repetitions), a “ranged quantifier” is available. This comprises a family of adjustable iteration checkers, by default enclosed within `{` and `}`.
 
-The family consists of these three variants:
+The family consists of these three variants, each elucidated in a section of its own further below:
 
 | Variant  | Description                                                  |
 | -------- | ------------------------------------------------------------ |
@@ -233,7 +231,7 @@ The family consists of these three variants:
 | `{%:…:`} | A user-defined function to check for desiderated iterations. |
 
 
-### Ranges
+### Range
 
 The instigating brace `{` must be immediately followed by the opening square bracket `[` to form `{[`. Further white spaces are ignored. The complete syntax — albeit variations are extant — is as follows:
 
@@ -247,45 +245,46 @@ Only integer numbers greater or equal to 0, white spaces and omissions are valid
 | `{[*MINIMUM*,]}`             | The number of repetitions must be at least *MINIMUM*, with no maximum required. Hence, *MAXIMUM* defaults to “infinity”. | `{[2,]}` |
 | `{[,*MAXIMUM*]}`             | The number of repetitions must be at most *MAXIMUM*, with no minimum required. Hence, *MINIMUM* defaults to zero. | `{[,10]}` |
 | `{[*REPETITIONS*]}`          | The number of repetitions must exactly equal *REPETITIONS*. This is commensurately equivalent to the syntax `{[*MINIMUM*,*MINIMUM*]}`. | `{[4]}` |
-| `{[,]}`                      | The number of repetitions is unbounded (“infinite”) on both ends. In consectary, this is synonymous to the `*` quantifier. |
+| `{[,]}`                      | The number of repetitions is unbounded (“infinite”) on both ends. In consectary, this is synonymous to the `*` quantifier. | `{[,]}` |
 
 Some examples shall demonstrate these features:
 
-    (match-re "a{[2,4]}b" "aaab")
+    CL-USER > (match-re "a{[2,4]}b" "aaab")
     #<RE-MATCH "aaab">
 
     ;; Too few "a" occurrences.
-    (match-re "a{[2,4]}b" "ab")
+    CL-USER > (match-re "a{[2,4]}b" "ab")
     NIL
 
     ;; Too many "a" occurrences.
-    (match-re "a{[2,4]}b" "aaaaab")
+    CL-USER > (match-re "a{[2,4]}b" "aaaaab")
     NIL
 
-    (match-re "a{[2,]}b" "aaaaaaaaaaaaaaaaab")
+    CL-USER > (match-re "a{[2,]}b" "aaaaaaaaaaaaaaaaab")
     #<RE-MATCH "aaaaaaaaaaaaaaaaab">
 
-    (match-re "a{[,4]}b" "aaaab")
+    CL-USER > (match-re "a{[,4]}b" "aaaab")
     #<RE-MATCH "aaaab">
 
     ;; Too many "a" occurrences.
-    (match-re "a{[,4]}b" "aaaaaaaaaaaaaaaaab")
+    CL-USER > (match-re "a{[,4]}b" "aaaaaaaaaaaaaaaaab")
     NIL
     
-    (match-re "a{[3,3]}b" "aaab")
+    CL-USER > (match-re "a{[3,3]}b" "aaab")
     #<RE-MATCH "aaab">
 
-    (match-re "a{[3]}b" "aaab")
+    CL-USER > (match-re "a{[3]}b" "aaab")
     #<RE-MATCH "aaab">
 
-    (match-re "a{[,]}b" "aaab")
+    CL-USER > (match-re "a{[,]}b" "aaab")
     #<RE-MATCH "aaab">
 
-### Number set
+### Number Sequence
 
-The number of repetitions must equal one of those numbers in the sequence. This sequence is a comma-separated list of integer values greater or equal to zero. Redudant entries are permitted but meaningless. The equal sign must follow immediately after the opening brace to form `{=`, further white spaces are ignored.
+The number of repetitions must equal one of those numbers in the sequence. This sequence is a comma-separated list of integer values greater than or equal to zero. Redudant entries are permitted but meaningless. The equal sign `=` must follow immediately after the opening brace to form `{=`, further white spaces are ignored.
 
 The syntax is:
+
     {= a, b, c, …, d}
 
 Examples:
@@ -303,19 +302,19 @@ The indagation whether the number of repetitions is valid is delegated to a glob
 
     {%:USER-FUNCTION%:}
 
-The signature, in corollary, complies to:
+The function signature, in corollary, complies to:
 
     lambda(number-of-repetitions) => generalized-boolean
 
 Some examples to illustrate:
 
-    (defun even-number-of-repetitions-p (counter)
-      (evenp counter))
-
-    (match-re "a{%:even-number-of-repetitions-p:}b" "aab")
+    CL-USER > (defun even-number-of-repetitions-p (counter)
+                (evenp counter))
+    
+    CL-USER > (match-re "a{%:even-number-of-repetitions-p:}b" "aab")
     #<RE-MATCH "aab">
     
-    (match-re "a{%:even-number-of-repetitions-p:}b" "aaab")
+    CL-USER > (match-re "a{%:even-number-of-repetitions-p:}b" "aaab")
     NIL
 
 
@@ -329,16 +328,45 @@ A few instances of the regular expression engine behavior are adjustable, especi
 * `re-configuration-named-capture-name-ender` designates the character utilized to mark the end of the group name portion of a named captured group, defaulting to `#\>`
 * `re-configuration-permit-ranged-quantifiers`, adjustable with a generalized boolean, determines whether ranged quantifiers of the type `{…}` are recognized at all
 
-An example follows:
+The following example changes the named captured group syntax to `(+[GROUP-NAME])`:
 
-    (setf (re-configuration-named-capture-marker       *re-configuration*) #\+)
-    (setf (re-configuration-named-capture-name-starter *re-configuration*) #\[)
-    (setf (re-configuration-named-capture-name-ender   *re-configuration*) #\])
+    CL-USER > (setf (re-configuration-named-capture-marker       *re-configuration*) #\+)
+    CL-USER > (setf (re-configuration-named-capture-name-starter *re-configuration*) #\[)
+    CL-USER > (setf (re-configuration-named-capture-name-ender   *re-configuration*) #\])
     
-    (with-re-match (match (match-re "(+[year]%d{=2,4})/(+[month]%d{[1,2]})/(+[day]%d{=2})" "2018/05/31"))
-      (format T "~&Year:  ~a~%" ($-> "year"  :first :substring))
-      (format T "~&Month: ~a~%" ($-> "month" :first :substring))
-      (format T "~&Day:   ~a~%" ($-> "day"   :first :substring)))
+    CL-USER > (with-re-match (match (match-re "(+[year]%d{=2,4})/(+[month]%d{[1,2]})/(+[day]%d{=2})" "2018/05/31"))
+                (format T "~&Year:  ~a~%" ($-> "year"  :first :substring))
+                (format T "~&Month: ~a~%" ($-> "month" :first :substring))
+                (format T "~&Day:   ~a~%" ($-> "day"   :first :substring)))
+    Year:  2018
+    Month: 05
+    Day:   31
+
+The `re-configuration-named-capture-name-starter` and `re-configuration-named-capture-name-ender` characters may be equal, here to mandate the delineation `(-"GROUP-NAME")`:
+
+    CL-USER > (setf (re-configuration-named-capture-marker       *re-configuration*) #\-)
+    CL-USER > (setf (re-configuration-named-capture-name-starter *re-configuration*) #\")
+    CL-USER > (setf (re-configuration-named-capture-name-ender   *re-configuration*) #\")
+    
+    CL-USER > (with-re-match (match (match-re "(-\"year\"%d{=2,4})/(-\"month\"%d{[1,2]})/(-\"day\"%d{=2})" "2018/05/31"))
+                (format T "~&Year:  ~a~%" ($-> "year"  :first :substring))
+                (format T "~&Month: ~a~%" ($-> "month" :first :substring))
+                (format T "~&Day:   ~a~%" ($-> "day"   :first :substring)))
+    Year:  2018
+    Month: 05
+    Day:   31
+
+The ranged quantifier deactivated:
+
+    CL-USER > (setf (re-configuration-permit-ranged-quantifiers *re-configuration*) NIL)
+
+    ;; Ranged quantifiers are deactivated. => Literal parsing.
+    CL-USER > (match-re "a{[1,7]}b" "aaab")
+    NIL
+
+    ;; Ranged quantifiers are deactivated. => Literal parsing.
+    CL-USER > (match-re "a{[1,7]}b" "a{1}b")
+    #<RE-MATCH "a{1}b">
 
 
 # Thank You!
