@@ -86,7 +86,34 @@ Let us match a pattern and access one of its captured groups:
     Start:      0
     End:        3
 
-The `match-extract-data` function offers some convenience in operating upon matches and their captures:
+The `match-extract-data` function offers some convenience in operating upon matches and their captures.
+
+    (match-extract-data (&key (set :all-groups) (selection :all) (component :capture) (default NIL)))
+
+The `set` determines the subset of captured groups to retrieve, always a vector of `re-capture` instances, valid options being:
+
+* `:all-groups` selects all groups, named and unnamed
+* `:named-groups` selects named groups only
+* `:unnamed-groups` selects unnamed groups only
+* `group-name` is a string designating the name of the groups to select
+
+The `selection` filters the subset obtained with the `set` parameter, returning either a vector of `re-capture`s or a single `re-capture` object. The argument expects one of these values:
+
+* `:all` simply returns the existing subset
+* `:first` obtains the first group, or the default value upon the subset's dearth of items
+* `:last` obtains the last group, or the default value upon the subset's dearth of items
+* `index` constitutes an integer greater or equal to 0 which references the item to select from the subset
+
+As an `re-capture` in its completeness might not be desiderated, the vector or single `re-capture` instance(s) might be replaced via the `component` argument:
+
+* `:capture` simply returns each `re-capture` instance unmodified
+* `:substring` extracts the substring from each `re-capture`
+* `:start-position` extracts the start position of the group in the input string
+* `:end-position` extracts the end position of the group in the input string
+* `:start-and-end-position` extracts the start and end position as a two-item list `(start end)`
+* `:name` extracts the group name, which might be `NIL` in the case of an unnamed group
+
+Failure to obtain a group usually results in the `NIL` value. This behavior might be modified by setting a different substitution through the `default` parameter.
 
     CL-USER > (let ((m (match-re "(?(bunny|cat|dog)|(carrot|milk|tuna)*%s+)*"
                        "cat milk bunny tuna carrot dog bunny")))
@@ -278,31 +305,7 @@ An additional local function `$->` permits a generalized access to captured grou
 
     ($-> (set &optional (selection :all) (component :capture) (default NIL)))
 
-
-The `set` determines the subset of captured groups to retrieve, always a vector of `re-capture` instances, valid options being:
-
-* `:all-groups` selects all groups, named and unnamed
-* `:named-groups` selects named groups only
-* `:unnamed-groups` selects unnamed groups only
-* `group-name` is a string designating the name of the groups to select
-
-The `selection` filters the subset obtained with the `set` parameter, returning either a vector of `re-capture`s or a single `re-capture` object. The argument expects one of these values:
-
-* `:all` simply returns the existing subset
-* `:first` obtains the first group, or the default value upon the subset's dearth of items
-* `:last` obtains the last group, or the default value upon the subset's dearth of items
-* `index` constitutes an integer greater or equal to 0 which references the item to select from the subset
-
-As an `re-capture` in its completeness might not be desiderated, the vector or single `re-capture` instance(s) might be replaced via the `component` argument:
-
-* `:capture` simply returns each `re-capture` instance unmodified
-* `:substring` extracts the substring from each `re-capture`
-* `:start-position` extracts the start position of the group in the input string
-* `:end-position` extracts the end position of the group in the input string
-* `:start-and-end-position` extracts the start and end position as a two-item list (start end)
-* `:name` extracts the group name, which might be `NIL` in the case of an unnamed group
-
-Failure to obtain a group usually results in the `NIL` value. This behavior might be modified by setting a different substitution through the `default` parameter.
+The capabilities of this function match that of `match-extract-data`, solely substituting keyword parameters for mandatory or optional ones for conciseness.
 
     CL-USER > (with-re-match (match (match-re "(!<year>%d{=2,4})/(!<month>%d{[1,2]})/(!<day>%d{=2})" "2018/05/31"))
                 (format T "~&Year:  ~a~%" ($-> "year"  :first :substring))
