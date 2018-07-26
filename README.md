@@ -115,14 +115,14 @@ As an `re-capture` in its completeness might not be desiderated, the vector or s
 
 Failure to obtain a group usually results in the `NIL` value. This behavior might be modified by setting a different substitution through the `default` parameter.
 
-    CL-USER > (let ((m (match-re "(?(bunny|cat|dog)|(carrot|milk|tuna)*%s+)*"
+    CL-USER > (let ((m (match-re "(?(bunny|cat|dog)|(!<food>carrot|milk|tuna)*%s+)*"
                        "cat milk bunny tuna carrot dog bunny")))
                 (format T "~&Group names:     ~a~%" (match-extract-data m :component :name))
                 (format T "~&Substrings:      ~a~%" (match-extract-data m :component :substring))
                 (format T "~&Starts:          ~a~%" (match-extract-data m :component :start-position))
                 (format T "~&Ends:            ~a~%" (match-extract-data m :component :end-position))
                 (format T "~&Starts and ends: ~a~%" (match-extract-data m :component :start-and-end-position)))
-    Group names:     #(NIL NIL NIL NIL NIL NIL NIL)
+    Group names:     #(NIL food NIL food food NIL NIL)
     Substrings:      #(cat milk bunny tuna carrot dog bunny)
     Starts:          #(0 4 9 15 20 27 31)
     Ends:            #(3 8 14 19 26 30 36)
