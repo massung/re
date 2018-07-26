@@ -618,9 +618,9 @@
 
                    ;; groups
                    ;; Possible return values are:
-                   ;;   captured   group: (:group (list :captured))
-                   ;;   uncaptured group: (:group (list :uncaptured #\?))
-                   ;;   named      group: (:group (list :named      "?<NAMESTRING>"))
+                   ;;   captured   group: (:group (list :captured   #\( stream))
+                   ;;   uncaptured group: (:group (list :uncaptured #\( stream))
+                   ;;   named      group: (:group (list :named      #\( stream))
                    (#\( (with-slots (permit-named-captures named-capture-marker)
                                     *re-configuration*
                           (cond
