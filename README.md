@@ -70,6 +70,39 @@ Try peeking into a match...
     START-POS      0
     END-POS        3
 
+Let us match a pattern and access one of its captured groups:
+
+    CL-USER > (let ((m (match-re "(?(bunny|cat|dog)|(carrot|milk|tuna)*%s+)*"
+                       "cat milk bunny tuna carrot dog bunny")))
+                (let ((first-animal (match-capture-at-index m 0)))
+                  (format T "~&Has name:   ~a~%" (re-capture-has-name       first-animal))
+                  (format T "~&Group name: ~a~%" (re-capture-name           first-animal))
+                  (format T "~&Substring:  ~a~%" (re-capture-substring      first-animal))
+                  (format T "~&Start:      ~a~%" (re-capture-start-position first-animal))
+                  (format T "~&End:        ~a~%" (re-capture-end-position   first-animal))))
+    Has name:   NIL
+    Group name: NIL
+    Substring:  cat
+    Start:      0
+    End:        3
+
+The `match-extract-data` function offers some convenience in operating upon matches and their captures:
+
+    CL-USER > (let ((m (match-re "(?(bunny|cat|dog)|(carrot|milk|tuna)*%s+)*"
+                       "cat milk bunny tuna carrot dog bunny")))
+                (format T "~&Group names:     ~a~%" (match-extract-data m :component :name))
+                (format T "~&Substrings:      ~a~%" (match-extract-data m :component :substring))
+                (format T "~&Starts:          ~a~%" (match-extract-data m :component :start-position))
+                (format T "~&Ends:            ~a~%" (match-extract-data m :component :end-position))
+                (format T "~&Starts and ends: ~a~%" (match-extract-data m :component :start-and-end-position)))
+    Group names:     #(NIL NIL NIL NIL NIL NIL NIL)
+    Substrings:      #(cat milk bunny tuna carrot dog bunny)
+    Starts:          #(0 4 9 15 20 27 31)
+    Ends:            #(3 8 14 19 26 30 36)
+    Starts and ends: #((0 3) (4 8) (9 14) (15 19) (20 26) (27 30) (31 36))
+
+Further examples can be found in the section “Named Groups”.
+
 ## Pattern Scanning
 
 To find a pattern match anywhere in a string use the `find-re` function.
@@ -143,6 +176,82 @@ These names are not confined to uniqueness, acting in some sense as “tags”: 
 
     CL-USER > (match-captures (match-re "(!<letter>%a)+" "abcd"))
     #(#<re-capture start=0, end=1, substring="a", name=letter> #<re-capture start=1, end=2, substring="b", name=letter> #<re-capture start=2, end=3, substring="c", name=letter> #<re-capture start=3, end=4, substring="d", name=letter>)
+
+We can retrieve a vector of the `re-capture` groups designated by a certain name with the `match-captures-by-name` function:
+
+    CL-USER > (let ((m (match-re "(?(!<animal>bunny|cat|dog)|(!<food>carrot|milk|tuna)*%s+)*"
+                       "cat milk bunny tuna carrot dog bunny")))
+                (format T "~&Animals: ~a~%" (match-captures-by-name m "animal"))
+                (format T "~&Food:    ~a~%" (match-captures-by-name m "food")))
+    Animals: #(#<re-capture start=0, end=3, substring="cat", name=animal> #<re-capture start=9, end=14, substring="bunny", name=animal> #<re-capture start=27, end=30, substring="dog", name=animal> #<re-capture start=31, end=36, substring="bunny", name=animal>)
+    Food:    #(#<re-capture start=4, end=8, substring="milk", name=food> #<re-capture start=15, end=19, substring="tuna", name=food> #<re-capture start=20, end=26, substring="carrot", name=food>)
+
+To obtain the first or last group with a given name employ the `match-capture-by-name` function:
+
+    CL-USER > (let ((m (match-re "(?(!<animal>bunny|cat|dog)|(!<food>carrot|milk|tuna)*%s+)*"
+                       "cat milk bunny tuna carrot dog bunny")))
+                (format T "~&First animal: ~a~%" (match-capture-by-name m "animal"))
+                (format T "~&Last  animal: ~a~%" (match-capture-by-name m "animal" :selection :last))
+                (format T "~&First food:   ~a~%" (match-capture-by-name m "food"   :selection :first))
+                (format T "~&Last  food:   ~a~%" (match-capture-by-name m "food"   :selection :last)))
+    First animal: #<re-capture start=0, end=3, substring="cat", name=animal>
+    Last  animal: #<re-capture start=31, end=36, substring="bunny", name=animal>
+    First food:   #<re-capture start=4, end=8, substring="milk", name=food>
+    Last  food:   #<re-capture start=20, end=26, substring="carrot", name=food>
+
+The `match-capture-by-name` function also accepts a `default` value to return upon lacuna of the given group name.
+
+    CL-USER > (let ((m (match-re "(?(!<animal>bunny|cat|dog)|(!<food>carrot|milk|tuna)*%s+)*"
+                       "cat milk bunny tuna carrot dog bunny")))
+                (format T "~&Places: ~a~%" (match-capture-by-name m "place" :default 'NO-PLACE-FOUND)))
+    Places: NO-PLACE-FOUND
+
+Upon wishing to access named group at a given index of the vector, you can utilize `match-capture-by-name-at-index` function, which expects a valid integer index:
+
+    CL-USER > (let ((m (match-re "(?(!<animal>bunny|cat|dog)|(!<food>carrot|milk|tuna)*%s+)*"
+                       "cat milk bunny tuna carrot dog bunny")))
+                (format T "~&animal[0]: ~a~%" (match-capture-by-name-at-index m "animal" 0))
+                (format T "~&animal[1]: ~a~%" (match-capture-by-name-at-index m "animal" 1))
+                (format T "~&animal[2]: ~a~%" (match-capture-by-name-at-index m "animal" 2))
+                (format T "~&animal[3]: ~a~%" (match-capture-by-name-at-index m "animal" 3)))
+    animal[0]: #<re-capture start=0, end=3, substring="cat", name=animal>
+    animal[1]: #<re-capture start=9, end=14, substring="bunny", name=animal>
+    animal[2]: #<re-capture start=27, end=30, substring="dog", name=animal>
+    animal[3]: #<re-capture start=31, end=36, substring="bunny", name=animal>
+
+To extract data from (named or unnamed) captured groups, employ the `match-extract-data` function which combines several accessor functionalities in a single call:
+
+    CL-USER > (let ((m (match-re "(?(!<animal>bunny|cat|dog)|(!<food>carrot|milk|tuna)*%s+)*"
+                       "cat milk bunny tuna carrot dog bunny")))
+                (format T "~&Animals: ~a~%" (match-extract-data m :set "animal" :component :substring))
+                (format T "~&Food:    ~a~%" (match-extract-data m :set "food"   :component :substring)))
+    Animals: #(cat bunny dog bunny)
+    Food:    #(milk tuna carrot)
+    
+    ;; Access the group vector by index or symbolic name:
+    CL-USER > (let ((m (match-re "(?(!<animal>bunny|cat|dog)|(!<food>carrot|milk|tuna)*%s+)*"
+                       "cat milk bunny tuna carrot dog bunny")))
+                (format T "~&Animals: ~a~%" (match-extract-data m :set "animal" :selection 1     :component :substring))
+                (format T "~&Food:    ~a~%" (match-extract-data m :set "food"   :selection :last :component :substring)))
+    Animals: bunny
+    Food:    carrot
+
+As each named group, just as an unnamed one, constitutes a `re-capture` object, the respective accessor functions mentioned in the “Basic Pattern Matching” section hold here, too:
+
+    CL-USER > (let ((m (match-re "(?(!<animal>bunny|cat|dog)|(!<food>carrot|milk|tuna)*%s+)*"
+                       "cat milk bunny tuna carrot dog bunny")))
+                (let ((first-animal (match-capture-by-name m "animal")))
+                  (format T "~&Has name:   ~a~%" (re-capture-has-name       first-animal))
+                  (format T "~&Group name: ~a~%" (re-capture-name           first-animal))
+                  (format T "~&Substring:  ~a~%" (re-capture-substring      first-animal))
+                  (format T "~&Start:      ~a~%" (re-capture-start-position first-animal))
+                  (format T "~&End:        ~a~%" (re-capture-end-position   first-animal))))
+    Has name:   T
+    Group name: animal
+    Substring:  cat
+    Start:      0
+    End:        3
+    
 
 
 ## The `with-re-match` Macro
