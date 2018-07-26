@@ -1236,50 +1236,6 @@
 
 ;;; ----------------------------------------------------
 
-#|
-;; Convert
-;;   (vector re-capture-1 ... re-capture-N)
-;; into
-;;   hash-table: group-name-i -> substr-i
-;;               or
-;;               group-name-i -> (substr-i-1 ... substr-i-M)
-;; 
-(defun match-captures-to-map (captures)
-  (let ((name-group-table (make-hash-table :test #'equal)))
-    (labels (;; Convert the hash-table scalar value for the key
-             ;; GROUP-NAME into a one-element list: (list value),
-             ;; for further item appendage.
-             (entry-to-list (group-name)
-               (setf (gethash group-name name-group-table)
-                 (list (gethash group-name name-group-table)))
-               name-group-table)
-             (set-substring (group-name substring)
-               (setf (gethash group-name name-group-table)
-                     substring))
-             ;; Interpret the hash-table value for the GROUP-NAME as
-             ;; a list, and append the SUBSTRING to the list tail.
-             (add-substring (group-name substring)
-               (setf (gethash group-name name-group-table)
-                     (append (gethash group-name name-group-table)
-                             (list substring)))
-               name-group-table))
-      (loop for match across captures do
-        (let ((substring  (re-capture-substring match))
-              (group-name (re-capture-name      match)))
-          (cond
-            ((null group-name)  (add-substring "" substring))
-            (t                  (let ((matches-for-name (gethash group-name name-group-table)))
-                                  (if (null matches-for-name)
-                                    (set-substring group-name substring)
-                                    (progn
-                                      (unless (listp matches-for-name)
-                                        (entry-to-list group-name))
-                                      (add-substring group-name substring)))))))))
-    name-group-table))
-|#
-
-;;; ----------------------------------------------------
-
 (defun retrieve-set-of-captures (match set)
   (cond
     ((and (symbolp set) (eq set :all-groups))
@@ -1423,8 +1379,7 @@
        (if (null ,match)
            ,no-match
          (let ((,$$  (match-string   ,match))
-               (,$*  (match-groups   ,match))
-               (,$<> (match-captures ,match)))
+               (,$*  (match-groups   ,match)))
            (declare (ignorable ,$$ ,$*))
            
            (labels ((,$-> (set &optional (selection :all) (component :capture) (default NIL))
