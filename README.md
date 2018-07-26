@@ -6,7 +6,7 @@ It makes heavy use of the monadic [`parse`](http://github.com/massung/parse) com
 
 ## Compiling Patterns
 
-To create a `re` object, you can either use the `compile-re` function or the `#r` dispatch macro.
+To create an `re` object, you can either use the `compile-re` function or the `#r` dispatch macro.
 
     CL-USER > (compile-re "%d+")
     #<RE "%d+">
@@ -410,9 +410,9 @@ Examples:
 
 ### User-defined Function
 
-The indagation whether the number of repetitions is valid is delegated to a global function *USER-FUNCTION*, the same must accept exactly one argument, the current number of iterations, and return a generalized boolean being `T` if the iterations are valid, and `NIL` upon invalidity. The syntax is:
+The indagation whether the number of repetitions is valid is delegated to a global function *USER-FUNCTION*, the same must accept exactly one argument, the current number of iterations, and return a generalized boolean being `T` if the iterations are valid, and `NIL` upon invalidity. The percent sign `%` must follow the opening brace `{` immediately to form `{%`. The syntax is:
 
-    {%:USER-FUNCTION%:}
+    {%:USER-FUNCTION:}
 
 The function signature, in corollary, complies to:
 
