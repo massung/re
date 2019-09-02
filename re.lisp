@@ -83,6 +83,12 @@
 
 ;;; ----------------------------------------------------
 
+(defun return-p (c)
+  "T if c is a return character."
+  (char= c #\return))
+
+;;; ----------------------------------------------------
+
 (defun newline-p (c)
   "T if c is a newline character."
   (or (char= c #\return)
@@ -235,6 +241,7 @@
       ;; named inclusive sets
       (#\s (values :is #'space-p))
       (#\t (values :is #'tab-p))
+      (#\r (values :is #'return-p))
       (#\n (values :is #'newline-p))
       (#\a (values :is #'alpha-char-p))
       (#\l (values :is #'lower-case-p))
@@ -247,6 +254,7 @@
       ;; named exclusive sets
       (#\S (values :is (is-not #'space-p)))
       (#\T (values :is (is-not #'tab-p)))
+      (#\R (values :is (is-not #'return-p)))
       (#\N (values :is (is-not #'newline-p)))
       (#\A (values :is (is-not #'alpha-char-p)))
       (#\L (values :is (is-not #'lower-case-p)))

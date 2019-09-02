@@ -143,6 +143,12 @@ In addition to supporting all of what Lua pattern matching has to offer, it also
     CL-USER > (match-re "(?a|b)+" "abbaaabbccc")
     #<RE-MATCH "abbaaabb">
 
+Also, to have slightly better support for Windows line endings, there is also the `%r` character set that matches on return characters only (as opposed to `%n` which matches on return and linefeed). This allows for patterns that match a single Windows or Linux/Mac line ending.
+
+    CL-USER > (match-re "%r?%n" (concatenate 'string '(#\return #\linefeed)))
+    #<RE-MATCH "^M
+    ">
+
 Finally, the `re` package has one special feature: user-defined character set predicates! Using `%:`, you can provide a predicate function for the regexp VM to test characters against.
 
     CL-USER > (match-re #r"%:digit-char-p:+" "103")
