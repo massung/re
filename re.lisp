@@ -116,7 +116,7 @@
 
 (define-parser re-parser
   "A regular expression is one or more expressions."
-  (.let (ex (.many1 're-expr))
+  (.let (ex (.many 're-expr))
     (.opt ex (.let (otherwise (.do (.is :or) 're-parser))
                (.ret `((:or ,ex ,otherwise)))))))
 
