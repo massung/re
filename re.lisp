@@ -310,15 +310,9 @@
                    (#\) :end-group)
                    (#\] :end-set)
 
-                   ;; start boundary
-                   (#\^ (if (eql (file-position stream) 1)
-                            :start
-                          (values :char c)))
-
-                   ;; end boundary
-                   (#\$ (if (null (peek-char nil stream nil nil))
-                            :end
-                          (values :char c)))
+                   ;; start/end boundary
+                   (#\^ :start)
+                   (#\$ :end)
 
                    ;; default to just an exact character match
                    (otherwise (values :char c)))))))
