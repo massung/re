@@ -444,7 +444,7 @@
   groups    ; pushed capture groups (subseq)
   stack)    ; pushed capture groups (sp)
 
-;;; -------------------u---------------------------------
+;;; ----------------------------------------------------
 
 (defun match (s thread start offset)
   "Create a re-match from a thread that matched."
