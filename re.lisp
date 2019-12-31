@@ -444,7 +444,7 @@
   groups    ; pushed capture groups (subseq)
   stack)    ; pushed capture groups (sp)
 
-;;; ----------------------------------------------------
+;;; -------------------u---------------------------------
 
 (defun match (s thread start offset)
   "Create a re-match from a thread that matched."
@@ -465,7 +465,6 @@
 
 (defun run (re s start end &aux (pc 0) (offset 0))
   "Execute a regular expression program."
-  (declare (optimize (safety 0) (debug 0) (speed 3)))
   (loop
      with threads = (list (make-re-thread pc (+ start offset) nil nil))
 
