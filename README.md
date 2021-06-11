@@ -160,6 +160,6 @@ The predicate must take a single character and return non-`nil` if the character
 
 If you get some good use out of this package, please let me know; it's nice to know your work is valued by others.
 
-I'm always improving it; it's the foundation for many of the other packages I've created for JSON parsing, XML parsing, HTTP header parsing, etc.
+I'm always improving it; it's the foundation for many of the other packages I've created for XML parsing, HTTP header parsing, etc.
 
 Should you find/fix a bug or add a nice feature, please feel free to send a pull request or let me know at [massung@gmail.com](mailto:massung@gmail.com).
