@@ -16,9 +16,9 @@ To create a `re` object, you can either use the `compile-re` function or the `#r
 
 Both work equally well, but the dispatch macro will compile the pattern at read-time. The `re` class has a [load form](http://www.lispworks.com/documentation/HyperSpec/Body/f_mk_ld_.htm#make-load-form) and so can be saved to a FASL file.
 
-*HINT: when using the read macro, use a backslash to escape the `/` and other characters that might mess with syntax coloring.*
+*HINT: When using the read macro, use a backslash to escape the `/` and other characters that might mess with syntax coloring.*
 
-Finally, the `with-re` macro let's you user either strings or `re` objects in a body of code. If a string is passed as the pattern, then it will be compiled before the body is evaluated.
+Finally, the `with-re` macro lets you use either strings or `re` objects in a body of code. If a string is passed as the pattern, then it will be compiled before the body is evaluated.
 
     CL-USER > (with-re (re "%d+") re)
     #<RE "%d+">
@@ -104,7 +104,7 @@ If `with` is a function, then the function is called with the `re-match` object,
 
 ## Groups
 
-Using parenthesis in a pattern will cause the matching text to be groups in the returned `re-match` object. The `match-groups` function will return a list of all the captured strings in the match.
+Using parentheses in a pattern will cause the matching text to be groups in the returned `re-match` object. The `match-groups` function will return a list of all the captured strings in the match.
 
     CL-USER > (match-groups (match-re #r/(%d+)(%a+)/ "123abc"))
     ("123" "abc")
@@ -114,7 +114,7 @@ Captures can be nested, but are always returned in the order they are **opened**
     CL-USER > (match-groups (match-re #r/(a(b(c)))(d)/ "abcd"))
     ("abc" "bc" "c" "d")
 
-*HINT: you can always use the `match-string` function to get at the full text that was matched and there's no need to capture the entire pattern.*
+*HINT: You can always use the `match-string` function to get at the full text that was matched and there's no need to capture the entire pattern.*
 
 ## The `with-re-match` Macro
 
@@ -154,12 +154,12 @@ Finally, the `re` package has one special feature: user-defined character set pr
     CL-USER > (match-re #r"%:digit-char-p:+" "103")
     #<RE-MATCH "103">
 
-The predicate must take a single character and return non-nil if the character matches the predicate function. *Note: this is especially handy when parsing unicode strings!*
+The predicate must take a single character and return non-`nil` if the character matches the predicate function. *Note: this is especially handy when parsing unicode strings!*
 
 # Thank You!
 
 If you get some good use out of this package, please let me know; it's nice to know your work is valued by others.
 
-I'm always improving it; it's the foundation for many of the other packages I've created for JSON parsing, XML parsing, HTTP header parsing, etc.
+I'm always improving it; it's the foundation for many of the other packages I've created for XML parsing, HTTP header parsing, etc.
 
 Should you find/fix a bug or add a nice feature, please feel free to send a pull request or let me know at [massung@gmail.com](mailto:massung@gmail.com).
